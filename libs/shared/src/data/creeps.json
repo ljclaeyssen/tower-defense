@@ -1,0 +1,12 @@
+{
+  "beetle": {
+    "id": "beetle",
+    "nameKey": "creeps.beetle.name",
+    "hp": 60,
+    "speed": 0.1,
+    "bounty": 5,
+    "hpGrowthPerWave": 0.25,
+    "sendCost": 8,
+    "incomeBonus": 1
+  }
+}

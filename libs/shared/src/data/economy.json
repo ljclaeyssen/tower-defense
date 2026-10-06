@@ -1,0 +1,9 @@
+{
+  "startingGold": 150,
+  "startingLives": 20,
+  "baseIncome": 10,
+  "incomePeriodTicks": 200,
+  "sellRefundRatio": 0.7,
+  "firstWaveDelayTicks": 300,
+  "waveCountdownTicks": 200
+}

@@ -1,0 +1,25 @@
+@if (isPve()) {
+<td-game-host #host />
+@if (facade.hud() !== null) {
+<div class="hud">
+  <td-hud-top-bar class="hud-top" [seed]="host.seed()" />
+  <td-build-panel class="hud-build" />
+  @if (facade.selectedTower() !== null) {
+  <td-tower-panel class="hud-tower" />
+  }
+</div>
+}
+<td-game-over-dialog />
+<p-toast position="top-center" />
+} @else {
+<div class="unavailable">
+  <p-card [header]="'app.title' | translate">
+    <p>{{ 'play.modeUnavailable' | translate }}</p>
+    <p-button
+      icon="pi pi-arrow-left"
+      [label]="'nav.back' | translate"
+      routerLink="/"
+    />
+  </p-card>
+</div>
+}

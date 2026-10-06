@@ -1,0 +1,51 @@
+<main class="home">
+  <header class="hero">
+    <h1>{{ 'app.title' | translate }}</h1>
+    <p class="tagline">{{ 'app.tagline' | translate }}</p>
+  </header>
+
+  <nav class="actions">
+    <p-button
+      icon="pi pi-play"
+      size="large"
+      [label]="'nav.playSolo' | translate"
+      routerLink="/play/pve"
+    />
+    <p-button
+      icon="pi pi-users"
+      size="large"
+      severity="secondary"
+      [outlined]="true"
+      [label]="'nav.playPvp' | translate"
+      routerLink="/lobby"
+    />
+    <p-button
+      icon="pi pi-images"
+      severity="secondary"
+      [text]="true"
+      [label]="'nav.gallery' | translate"
+      routerLink="/dev/gallery"
+    />
+  </nav>
+
+  <p-card [header]="'home.howToPlay.title' | translate" class="how-to">
+    <ul>
+      @for (key of howToPlayKeys; track key) {
+      <li>{{ key | translate }}</li>
+      }
+    </ul>
+  </p-card>
+
+  <div class="language">
+    <i class="pi pi-language" aria-hidden="true"></i>
+    <span>{{ 'common.language' | translate }}</span>
+    <p-select
+      [options]="languages()"
+      optionLabel="label"
+      optionValue="value"
+      [ngModel]="locale.lang()"
+      (ngModelChange)="locale.setLang($event)"
+      [ariaLabel]="'common.language' | translate"
+    />
+  </div>
+</main>

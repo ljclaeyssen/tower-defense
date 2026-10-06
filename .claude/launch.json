@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["nx", "serve", "web"],
+      "port": 4200
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["nx", "serve", "server"],
+      "port": 2567
+    }
+  ]
+}

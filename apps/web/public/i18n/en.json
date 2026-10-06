@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "Tower Defense",
+    "tagline": "Build mazes, hold the line, survive every wave."
+  },
+  "nav": {
+    "home": "Home",
+    "lobby": "Lobby",
+    "gallery": "Sprite gallery",
+    "back": "Back",
+    "playSolo": "Play solo",
+    "playPvp": "PvP lobby"
+  },
+  "home": {
+    "howToPlay": {
+      "title": "How to play",
+      "build": "Pick a tower (or press 1-9) and click the map to build it. Towers are mazes: creeps walk around them.",
+      "path": "You can never fully block the path to the exit.",
+      "upgrade": "Click a tower to upgrade or sell it. Kills and income earn gold.",
+      "waves": "Press N to call the next wave early. Lose all your lives and the game is over."
+    }
+  },
+  "lobby": {
+    "comingSoon": "The PvP lobby arrives in phase 3."
+  },
+  "play": {
+    "modeUnavailable": "This game mode is not available yet."
+  },
+  "hud": {
+    "gold": "Gold",
+    "lives": "Lives",
+    "wave": "Wave",
+    "waveOf": "Wave {{current}} / {{total}}",
+    "income": "Income",
+    "nextWave": "Next wave",
+    "nextWaveIn": "Next wave in {{seconds}}s",
+    "build": "Build",
+    "upgrade": "Upgrade",
+    "sell": "Sell",
+    "level": "Level {{level}}",
+    "max": "Max level",
+    "cost": "Cost",
+    "refund": "Refund",
+    "damage": "Damage",
+    "range": "Range",
+    "cooldown": "Cooldown",
+    "cancel": "Cancel",
+    "close": "Close",
+    "seed": "Seed",
+    "selectTowerHint": "Select a tower to build, then click on the map"
+  },
+  "towers": {
+    "archer": {
+      "name": "Archer tower"
+    }
+  },
+  "creeps": {
+    "beetle": {
+      "name": "Beetle"
+    }
+  },
+  "rejections": {
+    "GameNotRunning": "The game is not running",
+    "UnknownPlayer": "Unknown player",
+    "UnknownType": "Unknown type",
+    "OutOfBounds": "You cannot build outside the map",
+    "CellBlocked": "This spot is not buildable",
+    "OverlapsTower": "There is already a tower here",
+    "OverlapsCreep": "A creep is in the way",
+    "BlocksPath": "That would block the path",
+    "NotEnoughGold": "Not enough gold",
+    "TowerNotFound": "That tower no longer exists",
+    "NotOwner": "That tower is not yours",
+    "MaxLevel": "This tower is already at max level",
+    "InvalidCount": "Invalid amount",
+    "NotAvailableInMode": "Not available in this game mode",
+    "NoWaveToStart": "There is no wave left to start"
+  },
+  "gameover": {
+    "title": "Game over",
+    "victory": "Victory! Every wave has been repelled.",
+    "defeat": "Defeat. The creeps broke through.",
+    "draw": "Draw.",
+    "playAgain": "Play again",
+    "backToMenu": "Back to menu"
+  },
+  "gallery": {
+    "title": "Sprite gallery",
+    "hint": "Every sprite and animation used by the game, for visual checks."
+  },
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "french": "French"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "basic",
+  "width": 24,
+  "height": 16,
+  "spawn": { "x": 0, "y": 7 },
+  "exit": { "x": 23, "y": 8 },
+  "blocked": []
+}

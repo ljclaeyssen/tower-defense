@@ -1,0 +1,7 @@
+[
+  { "creepType": "beetle", "count": 8, "spawnIntervalTicks": 16 },
+  { "creepType": "beetle", "count": 10, "spawnIntervalTicks": 16 },
+  { "creepType": "beetle", "count": 12, "spawnIntervalTicks": 14 },
+  { "creepType": "beetle", "count": 14, "spawnIntervalTicks": 14 },
+  { "creepType": "beetle", "count": 16, "spawnIntervalTicks": 12 }
+]

@@ -1,0 +1,55 @@
+@import 'primeicons/primeicons.css';
+
+:root {
+  --td-bg: #0b1020;
+  --td-panel-bg: rgba(12, 16, 28, 0.85);
+  --td-panel-border: rgba(224, 184, 90, 0.25);
+  --td-gold: #e0b85a;
+  --td-text: #e8e6e1;
+  --td-font:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--td-bg);
+  color: var(--td-text);
+  font-family: var(--td-font);
+}
+
+/* Shared HUD / overlay panel. Re-enables pointer events inside the click-through HUD layer. */
+.td-panel {
+  pointer-events: auto;
+  background: var(--td-panel-bg);
+  border: 1px solid var(--td-panel-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.1em;
+  padding: 0 0.3em;
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  font-family: var(--td-font);
+  font-size: 0.75em;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

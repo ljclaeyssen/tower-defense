@@ -1,0 +1,29 @@
+{
+  "archer": {
+    "id": "archer",
+    "nameKey": "towers.archer.name",
+    "levels": [
+      {
+        "cost": 50,
+        "damage": 14,
+        "range": 4,
+        "cooldownTicks": 12,
+        "projectileSpeed": 0.6
+      },
+      {
+        "cost": 60,
+        "damage": 26,
+        "range": 4.5,
+        "cooldownTicks": 11,
+        "projectileSpeed": 0.6
+      },
+      {
+        "cost": 120,
+        "damage": 46,
+        "range": 5,
+        "cooldownTicks": 10,
+        "projectileSpeed": 0.7
+      }
+    ]
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "Tower Defense",
+    "tagline": "Construisez des labyrinthes, tenez la ligne, survivez à chaque vague."
+  },
+  "nav": {
+    "home": "Accueil",
+    "lobby": "Salon",
+    "gallery": "Galerie de sprites",
+    "back": "Retour",
+    "playSolo": "Jouer en solo",
+    "playPvp": "Salon JcJ"
+  },
+  "home": {
+    "howToPlay": {
+      "title": "Comment jouer",
+      "build": "Choisissez une tour (ou appuyez sur 1-9) puis cliquez sur la carte pour la construire. Les tours forment un labyrinthe : les créatures les contournent.",
+      "path": "Vous ne pouvez jamais bloquer complètement le chemin vers la sortie.",
+      "upgrade": "Cliquez sur une tour pour l'améliorer ou la vendre. Les éliminations et le revenu rapportent de l'or.",
+      "waves": "Appuyez sur N pour lancer la vague suivante plus tôt. Si vous perdez toutes vos vies, la partie est finie."
+    }
+  },
+  "lobby": {
+    "comingSoon": "Le salon JcJ arrive en phase 3."
+  },
+  "play": {
+    "modeUnavailable": "Ce mode de jeu n'est pas encore disponible."
+  },
+  "hud": {
+    "gold": "Or",
+    "lives": "Vies",
+    "wave": "Vague",
+    "waveOf": "Vague {{current}} / {{total}}",
+    "income": "Revenu",
+    "nextWave": "Vague suivante",
+    "nextWaveIn": "Vague suivante dans {{seconds}} s",
+    "build": "Construire",
+    "upgrade": "Améliorer",
+    "sell": "Vendre",
+    "level": "Niveau {{level}}",
+    "max": "Niveau max",
+    "cost": "Coût",
+    "refund": "Remboursement",
+    "damage": "Dégâts",
+    "range": "Portée",
+    "cooldown": "Recharge",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "seed": "Graine",
+    "selectTowerHint": "Choisissez une tour à construire, puis cliquez sur la carte"
+  },
+  "towers": {
+    "archer": {
+      "name": "Tour d'archers"
+    }
+  },
+  "creeps": {
+    "beetle": {
+      "name": "Scarabée"
+    }
+  },
+  "rejections": {
+    "GameNotRunning": "La partie n'est pas en cours",
+    "UnknownPlayer": "Joueur inconnu",
+    "UnknownType": "Type inconnu",
+    "OutOfBounds": "Impossible de construire hors de la carte",
+    "CellBlocked": "Cet emplacement n'est pas constructible",
+    "OverlapsTower": "Il y a déjà une tour ici",
+    "OverlapsCreep": "Une créature gêne la construction",
+    "BlocksPath": "Cela bloquerait le chemin",
+    "NotEnoughGold": "Pas assez d'or",
+    "TowerNotFound": "Cette tour n'existe plus",
+    "NotOwner": "Cette tour ne vous appartient pas",
+    "MaxLevel": "Cette tour est déjà au niveau maximum",
+    "InvalidCount": "Quantité invalide",
+    "NotAvailableInMode": "Indisponible dans ce mode de jeu",
+    "NoWaveToStart": "Il n'y a plus de vague à lancer"
+  },
+  "gameover": {
+    "title": "Partie terminée",
+    "victory": "Victoire ! Toutes les vagues ont été repoussées.",
+    "defeat": "Défaite. Les créatures ont percé vos défenses.",
+    "draw": "Égalité.",
+    "playAgain": "Rejouer",
+    "backToMenu": "Retour au menu"
+  },
+  "gallery": {
+    "title": "Galerie de sprites",
+    "hint": "Tous les sprites et animations du jeu, pour les vérifications visuelles."
+  },
+  "common": {
+    "language": "Langue",
+    "english": "Anglais",
+    "french": "Français"
+  }
+}
