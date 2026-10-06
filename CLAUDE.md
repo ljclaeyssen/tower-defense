@@ -126,3 +126,20 @@ dark, top lightest), grid cell 32×16 logical px, anchor at the footprint center
   game size, so a canvas created before its parent had a layout kept a stale camera.
 - Balance (archer damage/cooldown) was tuned so that three archers upgraded over time win the five
   waves of `basic`; see `libs/sim/src/lib/balance.spec.ts`.
+
+## Deployment
+
+- Repo: https://github.com/ljclaeyssen/tower-defense (public). CI (`.github/workflows/ci.yml`) runs
+  format check, lint, test, build, typecheck on push and PRs.
+- Prod: https://tower-defense.ljclaeyssen.fr — static Angular build served by Caddy on the shared
+  Hetzner ARM64 VPS (same conventions as the other apps there: `/opt/apps/tower-defense`, one site
+  file `/etc/caddy/sites/tower-defense`, source of truth `deploy/Caddyfile.tower-defense`). DNS is a
+  wildcard, nothing to configure per subdomain.
+- `.github/workflows/deploy.yml` rebuilds and rsyncs the front on every push to `main`; it needs the
+  repository secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, which the owner sets by hand.
+- Manual deploy from a workstation (used for the first release):
+  `npx nx build web --configuration=production`, then tar the `dist/apps/web/browser` folder over
+  SSH into `frontend.new`, swap it in, `caddy validate`, `systemctl reload caddy`.
+- The Colyseus server is not deployed yet: phase 3/4 adds a Docker image (GHCR, ARM64), a compose
+  file in `/opt/apps/tower-defense` bound to `127.0.0.1:2567`, and a `/ws` reverse proxy in the
+  Caddy site.

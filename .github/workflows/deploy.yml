@@ -1,0 +1,73 @@
+name: Deploy front
+
+# Builds the Angular app and publishes it to the VPS as static files served by Caddy
+# (see deploy/Caddyfile.tower-defense). Requires the repository secrets
+# VPS_HOST, VPS_USER and VPS_SSH_KEY (private key registered on the VPS).
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-front
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npx nx build web --configuration=production
+
+      - name: Install SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload build and swap it in
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            dist/apps/web/browser/ "$VPS_USER@$VPS_HOST:/opt/apps/tower-defense/frontend.new/"
+          ssh -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" '
+            set -e
+            cd /opt/apps/tower-defense
+            rm -rf frontend.old
+            [ -d frontend ] && mv frontend frontend.old || true
+            mv frontend.new frontend
+            rm -rf frontend.old
+          '
+
+      - name: Install Caddy site and reload
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key deploy/Caddyfile.tower-defense "$VPS_USER@$VPS_HOST:/etc/caddy/sites/tower-defense"
+          ssh -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" \
+            'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl reload caddy'
+
+      - name: Smoke test
+        run: |
+          sleep 3
+          curl -fsS -o /dev/null -w 'HTTP %{http_code}\n' https://tower-defense.ljclaeyssen.fr/

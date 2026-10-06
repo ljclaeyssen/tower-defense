@@ -11,6 +11,8 @@
 - [x] `apps/web` (12 tests): routes, i18n en/fr, GameHostComponent, GameFacade, HUD, game-over dialog
 - [x] Integration: `nx run-many -t typecheck lint test build` green; browser playtest (place/upgrade/sell, rejections, defeat dialog, play again, route leave)
 - [x] Fixes found in playtest: Vite prebundle exclude for workspace libs, camera size sync, tower panel offset above the PrimeUI badge
+- [x] Published: public GitHub repo + static front live at https://tower-defense.ljclaeyssen.fr (Caddy, VPS)
+- [ ] Owner sets repo secrets VPS_HOST / VPS_USER / VPS_SSH_KEY for the deploy workflow
 - [ ] Owner playtest and feedback
 
 ## Phase 2 — art pipeline (generators, atlas, gallery, effects)
@@ -18,6 +20,9 @@
 ## Phase 3 — PvP (Colyseus rooms, lobby, RemoteSession, send creeps)
 
 ## Phase 4 — VPS deployment (Dockerfile, compose, Caddy)
+
+- [x] Static front + Caddy site (done early, 2026-10-06)
+- [ ] Server image (ARM64, GHCR), docker compose, /ws proxy
 
 ## Review — phase 1 (2026-10-06)
 
