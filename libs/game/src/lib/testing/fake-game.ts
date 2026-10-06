@@ -3,11 +3,13 @@
  */
 import { DEFAULT_PVE_CONFIG } from '@td/shared';
 import type {
+  CellKind,
   Command,
   CommandResult,
   GameConfig,
   GameEvent,
   GameState,
+  GridPos,
   LaneState,
   PlayerState,
   TowerState,
@@ -15,16 +17,53 @@ import type {
 import type { Game } from '@td/sim';
 import type { GameSession } from '../api.js';
 
-export function makeLane(overrides: Partial<LaneState> = {}): LaneState {
-  const width = 8;
-  const height = 6;
+export interface LaneLayout {
+  /** Road cells besides the spawn and the exit (which are always road). */
+  readonly path?: readonly GridPos[];
+  readonly rocks?: readonly GridPos[];
+}
+
+/** Row-major cells: ground everywhere, road on spawn, exit and `layout.path`, rocks on `layout.rocks`. */
+export function makeCells(
+  width: number,
+  height: number,
+  spawn: GridPos,
+  exit: GridPos,
+  layout: LaneLayout = {},
+): CellKind[] {
+  const cells = new Array<CellKind>(width * height).fill('ground');
+  const set = (p: GridPos, kind: CellKind): void => {
+    if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height)
+      cells[p.y * width + p.x] = kind;
+  };
+  for (const p of layout.path ?? []) set(p, 'path');
+  for (const p of layout.rocks ?? []) set(p, 'rock');
+  set(spawn, 'path');
+  set(exit, 'path');
+  return cells;
+}
+
+/**
+ * 8x6 lane. Without a layout every cell but the spawn/exit is ground and `groundWalkable` is true
+ * (open field), so fixtures that ignore the road keep their behavior. Pass `cells` in the overrides
+ * or a `layout` to build a road.
+ */
+export function makeLane(
+  overrides: Partial<LaneState> = {},
+  layout?: LaneLayout,
+): LaneState {
+  const width = overrides.width ?? 8;
+  const height = overrides.height ?? 6;
+  const spawn = overrides.spawn ?? { x: 0, y: 2 };
+  const exit = overrides.exit ?? { x: 7, y: 3 };
   return {
     playerId: 0,
     width,
     height,
-    spawn: { x: 0, y: 2 },
-    exit: { x: 7, y: 3 },
-    blocked: new Array<boolean>(width * height).fill(false),
+    spawn,
+    exit,
+    cells: makeCells(width, height, spawn, exit, layout),
+    groundWalkable: layout === undefined,
     towers: [],
     creeps: [],
     projectiles: [],

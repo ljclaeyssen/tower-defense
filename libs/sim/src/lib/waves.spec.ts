@@ -16,12 +16,12 @@ import {
   stepN,
 } from './testing.js';
 
-/** 20x11 serpentine: walls on odd rows with alternating gaps, ~125 cells of path. */
+/** 20x11 serpentine road (rows 0, 2, ..., 10 joined at alternating ends), ~125 cells long. */
 function snakeMap(): MapDef {
-  const blocked: GridPos[] = [];
-  for (let y = 1; y < 11; y += 2) {
-    const gapX = (y - 1) % 4 === 0 ? 19 : 0;
-    for (let x = 0; x < 20; x++) if (x !== gapX) blocked.push({ x, y });
+  const path: GridPos[] = [];
+  for (let y = 0; y <= 10; y += 2) {
+    const leftToRight = y % 4 === 0;
+    path.push({ x: leftToRight ? 0 : 19, y }, { x: leftToRight ? 19 : 0, y });
   }
   return {
     id: 'snake',
@@ -29,7 +29,7 @@ function snakeMap(): MapDef {
     height: 11,
     spawn: { x: 0, y: 0 },
     exit: { x: 0, y: 10 },
-    blocked,
+    path,
   };
 }
 

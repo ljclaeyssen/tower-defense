@@ -68,8 +68,14 @@ Art pipeline (`npx nx run art:build`, watch mode) arrives in phase 2.
 - Input = `Command` (PlaceTower, UpgradeTower, SellTower, SendCreeps, StartWave); output =
   `GameEvent` (TowerPlaced, TowerUpgraded, TowerSold, CreepSpawned, ProjectileFired, CreepHit,
   CreepKilled, LifeLost, WaveStarted, GoldChanged, CommandRejected, GameOver).
-- Flow field = BFS 4-connected from the exit, recomputed after each place/sell. Placement rejected if
-  it blocks the spawn or any living creep (`BlocksPath`) or overlaps a creep (`OverlapsCreep`).
+- Map model: every cell is `ground` (buildable, not walkable), `path` (the drawn road: walkable, not
+  buildable) or `rock` (neither). `MapDef.path` is an axis-aligned polyline of waypoints (first =
+  spawn, last = exit) expanded by `expandPath`; `rocks` decorate; `groundWalkable: true` turns a map
+  into the open-field mazing mode for later PvP maps. `basic` is a 24×16 serpentine road.
+- Flow field = BFS 4-connected from the exit over walkable cells, recomputed after each place/sell.
+  Placement is rejected on non-ground cells (`CellBlocked`); on `groundWalkable` maps it is also
+  rejected if it traps the spawn or a living creep (`BlocksPath`) or overlaps a creep
+  (`OverlapsCreep`).
 - Tick order: wave timer/spawns → towers target+fire → projectiles move+hit → creeps move+leak →
   income → end-of-game → tick++.
 - API: `createGame(config, seed)`, `apply(cmd, playerId) → CommandResult`, `step()`, `getState()`
@@ -111,6 +117,10 @@ dark, top lightest), grid cell 32×16 logical px, anchor at the footprint center
   community license key supplied later by the owner; vitest 5 kept via npm override; Phaser 4.2.1;
   Colyseus 0.18 with `@colyseus/sdk` as the client package; UI in English with runtime i18n (fr
   second); phases delivered one at a time with a stop for manual testing after each.
+- 2026-10-06 (owner feedback after the first playtest): creeps follow a drawn road that cannot be
+  built on, instead of free mazing on an open field; the open-field mode stays available per map
+  (`groundWalkable`). Baked textures are supersampled ×4 and the canvas renders at the device pixel
+  ratio because the first build looked pixelated on large screens.
 - Nx-generated AI config for other assistants (`.cursor`, `.codex`, `.gemini`, `.opencode`,
   `AGENTS.md`, `opencode.json`) was removed; `.claude/` and `.github/` were kept.
 

@@ -6,6 +6,11 @@ import type {
   LaunchedGame,
 } from './api.js';
 import { LocalGameBridge } from './bridge/game-bridge.js';
+import {
+  attachHiDpiSizing,
+  hiDpiScaleConfig,
+  readDevicePixelRatio,
+} from './display.js';
 import { GALLERY_SCENE_KEY, GalleryScene } from './scenes/gallery-scene.js';
 import { GAME_SCENE_KEY, GameScene } from './scenes/game-scene.js';
 import type { GameSceneData } from './scenes/game-scene.js';
@@ -15,29 +20,41 @@ const BACKGROUND = '#0b1020';
 /** Debug affordance: the Phaser game is reachable from the host element in devtools. */
 type PhaserHost = HTMLElement & { __phaserGame?: Phaser.Game };
 
-function createPhaserGame(parent: HTMLElement): Phaser.Game {
+interface MountedGame {
+  readonly game: Phaser.Game;
+  /** Disconnects the HiDPI sizing and destroys the game (removing its canvas). */
+  readonly destroy: () => void;
+}
+
+function createPhaserGame(parent: HTMLElement): MountedGame {
+  const dpr = readDevicePixelRatio();
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
     backgroundColor: BACKGROUND,
     // Block display: an inline canvas adds a baseline gap that overflows a parent of the same height.
     canvasStyle: 'display: block',
-    scale: {
-      mode: Phaser.Scale.RESIZE,
-      width: '100%',
-      height: '100%',
-      // The host sizes the parent; never let Phaser rewrite html/body/parent CSS.
-      expandParent: false,
-    },
+    // HiDPI: backing store in device pixels, displayed at CSS size (see display.ts).
+    scale: hiDpiScaleConfig(parent, dpr),
     // Scenes are added explicitly so they can receive their data.
     scene: [],
     banner: false,
     disableContextMenu: true,
     input: { keyboard: true, mouse: { preventDefaultWheel: true } },
-    render: { antialias: true },
+    // Baked textures are supersampled power-of-two canvases: mipmaps keep them smooth when zoomed out.
+    render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR' },
   });
   (parent as PhaserHost).__phaserGame = game;
-  return game;
+  const detachSizing = attachHiDpiSizing(game, parent, dpr);
+  return {
+    game,
+    destroy: () => {
+      detachSizing();
+      if ((parent as PhaserHost).__phaserGame === game)
+        delete (parent as PhaserHost).__phaserGame;
+      game.destroy(true);
+    },
+  };
 }
 
 /**
@@ -49,9 +66,9 @@ export function launchGame({
   session,
 }: LaunchGameOptions): LaunchedGame {
   const bridge = new LocalGameBridge(session);
-  const game = createPhaserGame(parent);
+  const mounted = createPhaserGame(parent);
   const data: GameSceneData = { session, bridge };
-  game.scene.add(GAME_SCENE_KEY, GameScene, true, data);
+  mounted.game.scene.add(GAME_SCENE_KEY, GameScene, true, data);
 
   let destroyed = false;
   return {
@@ -60,7 +77,7 @@ export function launchGame({
       if (destroyed) return;
       destroyed = true;
       bridge.destroy();
-      game.destroy(true);
+      mounted.destroy();
     },
   };
 }
@@ -69,15 +86,15 @@ export function launchGame({
 export function launchGallery({
   parent,
 }: LaunchGalleryOptions): LaunchedGallery {
-  const game = createPhaserGame(parent);
-  game.scene.add(GALLERY_SCENE_KEY, GalleryScene, true);
+  const mounted = createPhaserGame(parent);
+  mounted.game.scene.add(GALLERY_SCENE_KEY, GalleryScene, true);
 
   let destroyed = false;
   return {
     destroy(): void {
       if (destroyed) return;
       destroyed = true;
-      game.destroy(true);
+      mounted.destroy();
     },
   };
 }

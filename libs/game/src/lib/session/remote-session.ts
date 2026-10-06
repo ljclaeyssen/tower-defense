@@ -18,8 +18,8 @@ export interface RemoteSessionOptions {
  *
  * Not exported from the package entry point yet.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature of the phase 3 implementation
 export function createRemoteSession(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature of the phase 3 implementation
   _options: RemoteSessionOptions,
 ): GameSession {
   throw new Error('RemoteSession arrives in phase 3');

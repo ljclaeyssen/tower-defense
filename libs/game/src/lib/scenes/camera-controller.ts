@@ -1,9 +1,14 @@
 import * as Phaser from 'phaser';
+import { PIXEL_RATIO_KEY, getPixelRatio } from '../display.js';
 import { fitZoom, scrollForZoomAround } from '../render-math.js';
 
+/**
+ * Zoom limits in CSS pixels per world pixel. The canvas works in device pixels (see display.ts), so
+ * the camera zoom limits are these values multiplied by the pixel ratio.
+ */
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 3;
-/** Pointer travel (screen px) after which a press becomes a drag instead of a click. */
+/** Pointer travel (CSS px) after which a press becomes a drag instead of a click. */
 export const DRAG_THRESHOLD = 4;
 const WHEEL_STEP = 1.15;
 
@@ -42,11 +47,18 @@ export class CameraController {
   private canPan = false;
   /** True once the user moved or zoomed the camera; automatic refits stop then. */
   userMoved = false;
+  private pixelRatio: number;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly options: CameraControllerOptions = {},
   ) {
+    this.pixelRatio = getPixelRatio(scene);
+    scene.registry.events.on(
+      `changedata-${PIXEL_RATIO_KEY}`,
+      this.onPixelRatioChanged,
+      this,
+    );
     const input = scene.input;
     input.mouse?.disableContextMenu();
     input.on(Phaser.Input.Events.POINTER_DOWN, this.onDown, this);
@@ -69,8 +81,8 @@ export class CameraController {
       cam.height,
       bounds.maxX - bounds.minX,
       bounds.maxY - bounds.minY,
-      MIN_ZOOM,
-      MAX_ZOOM,
+      MIN_ZOOM * this.pixelRatio,
+      MAX_ZOOM * this.pixelRatio,
     );
     cam.setZoom(zoom);
     cam.centerOn(
@@ -80,6 +92,11 @@ export class CameraController {
   }
 
   destroy(): void {
+    this.scene.registry.events.off(
+      `changedata-${PIXEL_RATIO_KEY}`,
+      this.onPixelRatioChanged,
+      this,
+    );
     const input = this.scene.input;
     input.off(Phaser.Input.Events.POINTER_DOWN, this.onDown, this);
     input.off(Phaser.Input.Events.POINTER_MOVE, this.onMove, this);
@@ -111,7 +128,8 @@ export class CameraController {
     if (!this.panning && this.canPan) {
       const dx = pointer.x - this.downX;
       const dy = pointer.y - this.downY;
-      if (dx * dx + dy * dy > DRAG_THRESHOLD * DRAG_THRESHOLD) {
+      const threshold = DRAG_THRESHOLD * this.pixelRatio;
+      if (dx * dx + dy * dy > threshold * threshold) {
         this.panning = true;
         this.userMoved = true;
       }
@@ -152,13 +170,25 @@ export class CameraController {
     const cam = this.scene.cameras.main;
     const target = Phaser.Math.Clamp(
       dy > 0 ? cam.zoom / WHEEL_STEP : cam.zoom * WHEEL_STEP,
-      MIN_ZOOM,
-      MAX_ZOOM,
+      MIN_ZOOM * this.pixelRatio,
+      MAX_ZOOM * this.pixelRatio,
     );
     if (target === cam.zoom) return;
     const scroll = scrollForZoomAround(cam, pointer.x, pointer.y, target);
     cam.setZoom(target);
     cam.setScroll(scroll.scrollX, scroll.scrollY);
     this.userMoved = true;
+  }
+
+  /** Keeps the apparent zoom (CSS px per world px) and the view center when the pixel ratio changes. */
+  private onPixelRatioChanged(_parent: unknown, value: unknown): void {
+    if (typeof value !== 'number' || value <= 0 || value === this.pixelRatio)
+      return;
+    const cam = this.scene.cameras.main;
+    const centerX = cam.scrollX + cam.width / 2;
+    const centerY = cam.scrollY + cam.height / 2;
+    cam.setZoom(cam.zoom * (value / this.pixelRatio));
+    this.pixelRatio = value;
+    cam.centerOn(centerX, centerY);
   }
 }

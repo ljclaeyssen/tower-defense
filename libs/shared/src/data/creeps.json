@@ -2,7 +2,7 @@
   "beetle": {
     "id": "beetle",
     "nameKey": "creeps.beetle.name",
-    "hp": 60,
+    "hp": 90,
     "speed": 0.1,
     "bounty": 5,
     "hpGrowthPerWave": 0.25,

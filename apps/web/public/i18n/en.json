@@ -14,8 +14,8 @@
   "home": {
     "howToPlay": {
       "title": "How to play",
-      "build": "Pick a tower (or press 1-9) and click the map to build it. Towers are mazes: creeps walk around them.",
-      "path": "You can never fully block the path to the exit.",
+      "build": "Pick a tower (or press 1-9) and click the grass to build it. Creeps follow the road, and nothing can be built on it.",
+      "path": "Build along the bends of the road: a tower that covers two stretches shoots twice as often.",
       "upgrade": "Click a tower to upgrade or sell it. Kills and income earn gold.",
       "waves": "Press N to call the next wave early. Lose all your lives and the game is over."
     }

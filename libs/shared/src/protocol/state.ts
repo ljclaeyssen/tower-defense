@@ -1,4 +1,5 @@
 import type {
+  CellKind,
   EntityId,
   GamePhase,
   GameResult,
@@ -68,8 +69,10 @@ export interface LaneState {
   readonly height: number;
   readonly spawn: GridPos;
   readonly exit: GridPos;
-  /** Row-major; true = permanently unbuildable and unwalkable (map decoration). */
-  readonly blocked: readonly boolean[];
+  /** Row-major cell kinds (index = y * width + x): ground is buildable, path is the road, rock is decoration. */
+  readonly cells: readonly CellKind[];
+  /** True when creeps may also walk on ground cells (open-field mazing maps); see `MapDef.groundWalkable`. */
+  readonly groundWalkable: boolean;
   readonly towers: readonly TowerState[];
   readonly creeps: readonly CreepState[];
   readonly projectiles: readonly ProjectileState[];

@@ -14,8 +14,8 @@
   "home": {
     "howToPlay": {
       "title": "Comment jouer",
-      "build": "Choisissez une tour (ou appuyez sur 1-9) puis cliquez sur la carte pour la construire. Les tours forment un labyrinthe : les créatures les contournent.",
-      "path": "Vous ne pouvez jamais bloquer complètement le chemin vers la sortie.",
+      "build": "Choisissez une tour (ou appuyez sur 1-9) puis cliquez sur l'herbe pour la construire. Les créatures suivent la route, sur laquelle on ne peut rien construire.",
+      "path": "Construisez dans les virages : une tour qui couvre deux tronçons de route tire deux fois plus souvent.",
       "upgrade": "Cliquez sur une tour pour l'améliorer ou la vendre. Les éliminations et le revenu rapportent de l'or.",
       "waves": "Appuyez sur N pour lancer la vague suivante plus tôt. Si vous perdez toutes vos vies, la partie est finie."
     }

@@ -1,5 +1,8 @@
 import type { EntityId } from '@td/shared';
 import {
+  backingSize,
+  clampPixelRatio,
+  nextPowerOfTwo,
   fitZoom,
   hpColor,
   indexById,
@@ -115,5 +118,26 @@ describe('render-math', () => {
     );
     expect(isTypingTarget({ tagName: 'CANVAS' })).toBe(false);
     expect(isTypingTarget(null)).toBe(false);
+  });
+
+  it('rounds up to powers of two', () => {
+    expect(nextPowerOfTwo(1)).toBe(1);
+    expect(nextPowerOfTwo(56)).toBe(64);
+    expect(nextPowerOfTwo(128)).toBe(128);
+    expect(nextPowerOfTwo(264)).toBe(512);
+  });
+
+  it('sanitizes the device pixel ratio', () => {
+    expect(clampPixelRatio(undefined)).toBe(1);
+    expect(clampPixelRatio(Number.NaN)).toBe(1);
+    expect(clampPixelRatio(0.5)).toBe(1);
+    expect(clampPixelRatio(1.25)).toBe(1.25);
+    expect(clampPixelRatio(4)).toBe(3);
+  });
+
+  it('computes the canvas backing size in device pixels', () => {
+    expect(backingSize(735.5, 558, 2)).toEqual({ width: 1471, height: 1116 });
+    expect(backingSize(800, 600, 1.25)).toEqual({ width: 1000, height: 750 });
+    expect(backingSize(0, 0, 2)).toEqual({ width: 1, height: 1 });
   });
 });

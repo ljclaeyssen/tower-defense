@@ -1,6 +1,8 @@
+import { getMapDef } from '@td/shared';
 import { computeFlowField } from './flowfield.js';
 import { createGame } from './game.js';
-import { cellIndex, footprintCells } from './grid.js';
+import { cellIndex, expandPath, footprintCells } from './grid.js';
+import { validatePlacement } from './placement.js';
 import { OPEN_MAP, place, pveConfig } from './testing.js';
 
 const W = 5;
@@ -67,7 +69,164 @@ describe('computeFlowField', () => {
     }
     // The straight row-2 path is cut at x = 3..4: the detour costs two extra steps.
     expect(lane?.flowField.dist[cellIndex(OPEN_MAP, 0, 2)]).toBe(9);
-    // The map-blocked decoration cell is solid too.
-    expect(lane?.flowField.dist[cellIndex(OPEN_MAP, 4, 4)]).toBe(-1);
+    // Rocks are solid too.
+    expect(lane?.flowField.dist[cellIndex(OPEN_MAP, 5, 0)]).toBe(-1);
+  });
+});
+
+describe('expandPath / buildCells', () => {
+  it('expands axis-aligned waypoints into cells in walking order, corners once', () => {
+    expect(
+      expandPath({
+        path: [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 },
+          { x: 2, y: 2 },
+        ],
+      }),
+    ).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+    ]);
+  });
+
+  it('widens segments on the bottom (horizontal) / right (vertical) side', () => {
+    const cells = expandPath({
+      path: [
+        { x: 0, y: 0 },
+        { x: 2, y: 0 },
+        { x: 2, y: 2 },
+      ],
+      pathWidth: 2,
+    });
+    const keys = cells.map((c) => `${c.x},${c.y}`).sort();
+    expect(keys).toEqual(
+      [
+        '0,0',
+        '0,1',
+        '1,0',
+        '1,1',
+        '2,0',
+        '2,1',
+        '2,2',
+        '3,0',
+        '3,1',
+        '3,2',
+      ].sort(),
+    );
+  });
+
+  it('rejects diagonal segments', () => {
+    expect(() =>
+      expandPath({
+        path: [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('createGame validates the road against spawn, exit, bounds and rocks', () => {
+    const base = { ...OPEN_MAP };
+    expect(() =>
+      createGame(pveConfig({ ...base, spawn: { x: 1, y: 2 } }), 1),
+    ).toThrow();
+    expect(() =>
+      createGame(pveConfig({ ...base, exit: { x: 7, y: 3 } }), 1),
+    ).toThrow();
+    expect(() =>
+      createGame(pveConfig({ ...base, rocks: [{ x: 3, y: 4 }] }), 1),
+    ).toThrow();
+    expect(() =>
+      createGame(
+        pveConfig({
+          ...base,
+          path: [
+            { x: 0, y: 2 },
+            { x: 9, y: 2 },
+            { x: 7, y: 2 },
+          ],
+        }),
+        1,
+      ),
+    ).toThrow();
+  });
+
+  it('exposes the cell kinds in the lane snapshot', () => {
+    const lane = createGame(pveConfig(OPEN_MAP), 1).getState().lanes[0];
+    expect(lane?.groundWalkable).toBe(true);
+    expect(lane?.cells[cellIndex(OPEN_MAP, 0, 2)]).toBe('path');
+    expect(lane?.cells[cellIndex(OPEN_MAP, 3, 4)]).toBe('path');
+    expect(lane?.cells[cellIndex(OPEN_MAP, 5, 0)]).toBe('rock');
+    expect(lane?.cells[cellIndex(OPEN_MAP, 3, 2)]).toBe('ground');
+    expect(lane?.cells.filter((k) => k === 'path')).toHaveLength(12);
+  });
+});
+
+describe('basic map (serpentine road)', () => {
+  const map = getMapDef('basic');
+  const game = createGame(pveConfig(), 1);
+  const lane = game.getState().lanes[0];
+  const road = expandPath(map);
+  const at = (c: { x: number; y: number }) => cellIndex(map, c.x, c.y);
+
+  it('is a one-cell road of about 70 cells from the spawn to the exit, ground not walkable', () => {
+    expect(lane?.groundWalkable).toBe(false);
+    expect(road[0]).toEqual(map.spawn);
+    expect(road.at(-1)).toEqual(map.exit);
+    expect(road.length).toBeGreaterThanOrEqual(65);
+    expect(road.length).toBeLessThanOrEqual(90);
+    // Distances decrease by one along the road, down to 0 at the exit.
+    road.forEach((c, k) =>
+      expect(lane?.flowField.dist[at(c)]).toBe(road.length - 1 - k),
+    );
+    // `next` follows the road exactly.
+    road.forEach((c, k) => {
+      const nxt = road[k + 1];
+      expect(lane?.flowField.next[at(c)]).toBe(nxt ? at(nxt) : -1);
+    });
+    // Every other cell (ground, rocks) is unreachable.
+    const roadSet = new Set(road.map(at));
+    lane?.flowField.dist.forEach((d, i) => {
+      if (!roadSet.has(i)) expect(d).toBe(-1);
+    });
+  });
+
+  it('zig-zags through four vertical runs with 5-cell-wide ground corridors in between', () => {
+    const verticalXs = [
+      ...new Set(road.filter((c, k) => road[k + 1]?.x === c.x).map((c) => c.x)),
+    ];
+    expect(verticalXs).toEqual([4, 10, 16, 22]);
+    for (let i = 1; i < verticalXs.length; i++) {
+      expect((verticalXs[i] ?? 0) - (verticalXs[i - 1] ?? 0) - 1).toBe(5);
+    }
+    for (const x of verticalXs) {
+      const ys = road.filter((c) => c.x === x).map((c) => c.y);
+      expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it('only ground is buildable: road and rocks are CellBlocked, ground next to the road is fine', () => {
+    const state = game.getState();
+    expect(validatePlacement(state, 0, 'archer', { x: 3, y: 5 })).toBe(
+      'CellBlocked',
+    ); // touches road x=4
+    expect(validatePlacement(state, 0, 'archer', { x: 0, y: 8 })).toBe(
+      'CellBlocked',
+    ); // rock (1,9)
+    expect(validatePlacement(state, 0, 'archer', { x: 5, y: 5 })).toBeNull(); // right next to the road
+    expect(validatePlacement(state, 0, 'archer', { x: 2, y: 3 })).toBeNull();
+    // No tower position can ever block the road.
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        expect(validatePlacement(state, 0, 'archer', { x, y })).not.toBe(
+          'BlocksPath',
+        );
+      }
+    }
   });
 });

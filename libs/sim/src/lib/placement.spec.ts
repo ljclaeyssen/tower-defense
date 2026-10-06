@@ -3,7 +3,6 @@ import { createGame } from './game.js';
 import { cellIndex } from './grid.js';
 import { validatePlacement } from './placement.js';
 import {
-  CORRIDOR2_MAP,
   CORRIDOR3_MAP,
   OPEN_MAP,
   place,
@@ -22,11 +21,14 @@ describe('placement validation', () => {
     expect(place(game, 1.5, 0)).toEqual({ ok: false, reason: 'OutOfBounds' });
   });
 
-  it('rejects footprints on the spawn, the exit or a blocked cell with CellBlocked', () => {
+  it('rejects footprints touching the spawn, the exit, the road or a rock with CellBlocked', () => {
     const game = createGame(pveConfig(OPEN_MAP), 1);
     expect(place(game, 0, 1)).toEqual({ ok: false, reason: 'CellBlocked' }); // spawn (0,2)
     expect(place(game, 6, 2)).toEqual({ ok: false, reason: 'CellBlocked' }); // exit (7,2)
-    expect(place(game, 3, 3)).toEqual({ ok: false, reason: 'CellBlocked' }); // blocked (4,4)
+    expect(place(game, 2, 3)).toEqual({ ok: false, reason: 'CellBlocked' }); // road on row 4
+    expect(place(game, 4, 0)).toEqual({ ok: false, reason: 'CellBlocked' }); // rock (5,0)
+    // Ground right next to the road is buildable.
+    expect(place(game, 2, 2)).toEqual({ ok: true });
   });
 
   it('rejects overlapping towers with OverlapsTower', () => {
@@ -38,17 +40,17 @@ describe('placement validation', () => {
 
   it('rejects with NotEnoughGold once the gold is spent', () => {
     const game = createGame(pveConfig(OPEN_MAP), 1);
-    expect(place(game, 2, 0).ok).toBe(true);
-    expect(place(game, 4, 0).ok).toBe(true);
-    expect(place(game, 2, 3).ok).toBe(true);
+    expect(place(game, 1, 0).ok).toBe(true);
+    expect(place(game, 3, 0).ok).toBe(true);
+    expect(place(game, 5, 2).ok).toBe(true);
     expect(game.getState().players[0]?.gold).toBe(0);
-    expect(place(game, 5, 3)).toEqual({ ok: false, reason: 'NotEnoughGold' });
+    expect(place(game, 3, 2)).toEqual({ ok: false, reason: 'NotEnoughGold' });
     expect(
       validatePlacement(
         game.getState(),
         0,
         'archer',
-        { x: 5, y: 3 },
+        { x: 3, y: 2 },
         { checkGold: false },
       ),
     ).toBeNull();
@@ -70,15 +72,15 @@ describe('placement validation', () => {
     expect(validatePlacement(s(), 0, 'archer', { x: -1, y: 1 })).toBe(
       'OutOfBounds',
     );
-    expect(place(game, 2, 0).ok).toBe(true);
-    expect(place(game, 4, 0).ok).toBe(true);
-    expect(place(game, 2, 3).ok).toBe(true);
-    // Blocked cell AND overlapping a tower AND no gold -> CellBlocked.
-    expect(validatePlacement(s(), 0, 'archer', { x: 3, y: 3 })).toBe(
+    expect(place(game, 1, 0).ok).toBe(true);
+    expect(place(game, 3, 0).ok).toBe(true);
+    expect(place(game, 5, 2).ok).toBe(true);
+    // Road cell AND overlapping a tower AND no gold -> CellBlocked.
+    expect(validatePlacement(s(), 0, 'archer', { x: 5, y: 3 })).toBe(
       'CellBlocked',
     );
     // Overlapping a tower AND no gold -> OverlapsTower.
-    expect(validatePlacement(s(), 0, 'archer', { x: 1, y: 0 })).toBe(
+    expect(validatePlacement(s(), 0, 'archer', { x: 2, y: 0 })).toBe(
       'OverlapsTower',
     );
   });
@@ -131,22 +133,16 @@ describe('placement validation', () => {
   });
 });
 
-describe('anti-blocking', () => {
-  it('rejects closing the only corridor with BlocksPath', () => {
-    const game = createGame(pveConfig(CORRIDOR2_MAP), 1);
-    expect(place(game, 3, 1)).toEqual({ ok: false, reason: 'BlocksPath' });
-    expect(game.getState().lanes[0]?.towers).toHaveLength(0);
-    expect(game.getState().players[0]?.gold).toBe(150);
-  });
-
+describe('anti-blocking (walkable-ground maps)', () => {
   it('accepts a tower that leaves a detour and updates the flow field', () => {
     const game = createGame(pveConfig(CORRIDOR3_MAP), 1);
     const spawn = cellIndex(CORRIDOR3_MAP, 0, 2);
     expect(game.getState().lanes[0]?.flowField.dist[spawn]).toBe(7);
     expect(place(game, 3, 1).ok).toBe(true);
+    // Creeps now detour over the road on row 3.
     expect(game.getState().lanes[0]?.flowField.dist[spawn]).toBe(9);
-    // Closing the remaining detour (row 3 is the only way left) is rejected.
-    expect(place(game, 5, 2)).toEqual({ ok: false, reason: 'BlocksPath' });
+    // The road itself can never be built on, so the spawn can never be cut off.
+    expect(place(game, 5, 2)).toEqual({ ok: false, reason: 'CellBlocked' });
   });
 });
 
@@ -183,7 +179,8 @@ describe('overlapping creeps', () => {
   });
 
   it('validatePlacement on a snapshot agrees with apply for every cell while creeps walk', () => {
-    const game = createGame(pveConfig(), 3);
+    // Walkable-ground map: creeps cross the ground, so OverlapsCreep / BlocksPath are exercised.
+    const game = createGame(pveConfig(OPEN_MAP), 3);
     game.apply({ type: 'StartWave' }, 0);
     let overlaps = 0;
     for (let round = 0; round < 12; round++) {
@@ -206,7 +203,7 @@ describe('overlapping creeps', () => {
         }
       }
     }
-    expect(overlaps).toBeGreaterThan(50);
+    expect(overlaps).toBeGreaterThan(20);
   });
 
   it('only considers creeps of the lane the tower is built in', () => {
@@ -215,18 +212,26 @@ describe('overlapping creeps', () => {
   });
 
   it('rejects with BlocksPath when a living creep could not reach the exit anymore', () => {
-    // Two 2-cell-high routes (rows 1-2 and 4-5) separated by a wall on row 3. Spawn (0,3), exit (9,3).
+    // Walkable ground: two 2-cell-high routes (rows 1-2 ground, rows 4-5 ground + road on row 5)
+    // separated by a rock wall on row 3. Spawn (0,3), exit (9,3); the creep takes the upper route.
     const map: MapDef = {
       id: 'two-routes',
       width: 10,
       height: 7,
       spawn: { x: 0, y: 3 },
       exit: { x: 9, y: 3 },
-      blocked: [
+      path: [
+        { x: 0, y: 3 },
+        { x: 0, y: 5 },
+        { x: 9, y: 5 },
+        { x: 9, y: 3 },
+      ],
+      rocks: [
         ...Array.from({ length: 10 }, (_, x) => ({ x, y: 0 })),
         ...Array.from({ length: 10 }, (_, x) => ({ x, y: 6 })),
         ...Array.from({ length: 8 }, (_, i) => ({ x: i + 1, y: 3 })),
       ],
+      groundWalkable: true,
     };
     const setup = () => {
       const game = createGame(pvpConfig(map), 1);

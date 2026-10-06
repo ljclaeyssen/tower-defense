@@ -34,7 +34,13 @@ import {
   viewToWorld,
 } from '../render-math.js';
 import type { Rect } from '../render-math.js';
-import { CameraController, MouseButton } from './camera-controller.js';
+import { getPixelRatio } from '../display.js';
+import { groundKindAt } from '../ground.js';
+import {
+  CameraController,
+  MAX_ZOOM,
+  MouseButton,
+} from './camera-controller.js';
 import type { WorldBounds } from './camera-controller.js';
 import {
   CREEP_BODY_KEY,
@@ -43,11 +49,11 @@ import {
   GROUND_FLASH_KEY,
   PARTICLE_KEY,
   PROJECTILE_KEY,
+  TEXTURE_DISPLAY_SCALE,
   ensureTextures,
   groundTextureKey,
   towerTexture,
 } from './textures.js';
-import type { GroundKind } from './textures.js';
 
 export const GAME_SCENE_KEY = 'td-game';
 
@@ -83,14 +89,23 @@ const DAMAGE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: '#ffffff',
   stroke: '#000000',
   strokeThickness: 3,
-  resolution: 2,
 };
 const FLOW_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: 'monospace',
   fontSize: '7px',
   color: '#e5e7eb',
-  resolution: 3,
 };
+
+/** Shorthand: displays a supersampled baked texture at its logical size. */
+const D = TEXTURE_DISPLAY_SCALE;
+
+/**
+ * Text is rasterized at device pixel ratio x the maximum user zoom, so world-space labels stay sharp
+ * up to MAX_ZOOM on HiDPI screens.
+ */
+export function textResolution(scene: Phaser.Scene): number {
+  return getPixelRatio(scene) * MAX_ZOOM;
+}
 
 const EMPTY: readonly never[] = [];
 
@@ -262,18 +277,13 @@ export class GameScene extends Phaser.Scene {
 
   private buildGround(lane: LaneState): void {
     this.groundBuilt = true;
-    const spawnIndex = lane.spawn.y * lane.width + lane.spawn.x;
-    const exitIndex = lane.exit.y * lane.width + lane.exit.x;
     for (let y = 0; y < lane.height; y++) {
       for (let x = 0; x < lane.width; x++) {
-        const i = y * lane.width + x;
-        let kind: GroundKind;
-        if (i === spawnIndex) kind = 'spawn';
-        else if (i === exitIndex) kind = 'exit';
-        else if (lane.blocked[i] === true) kind = 'blocked';
-        else kind = (x + y) % 2 === 0 ? 'grass-a' : 'grass-b';
         const p = gridToScreen(x + 0.5, y + 0.5, this.tmpScreen);
-        this.add.image(p.x, p.y, groundTextureKey(kind)).setDepth(DEPTH_GROUND);
+        this.add
+          .image(p.x, p.y, groundTextureKey(groundKindAt(lane, x, y)))
+          .setScale(D)
+          .setDepth(DEPTH_GROUND);
       }
     }
     const exit = gridToScreen(
@@ -283,6 +293,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.exitFlash = this.add
       .image(exit.x, exit.y, GROUND_FLASH_KEY)
+      .setScale(D)
       .setTint(0xff2a2a)
       .setAlpha(0)
       .setDepth(DEPTH_GROUND_OVERLAY);
@@ -348,14 +359,16 @@ export class GameScene extends Phaser.Scene {
           bounds: { left: 0, top: 0, right: 0, bottom: 0 },
           seen: 0,
         };
-        sprite.setDepth(anchor.y);
+        sprite.setScale(D).setDepth(anchor.y);
         this.towers.set(tower.id, view);
       }
       if (view.level !== tower.level || view.team !== team) {
         view.level = tower.level;
         view.team = team;
         const info = towerTexture(tower.type, tower.level, team);
-        view.sprite.setTexture(info.key).setOrigin(info.originX, info.originY);
+        view.sprite
+          .setTexture(info.key)
+          .setOrigin(info.displayOriginX, info.displayOriginY);
         const { x, y } = view.sprite;
         view.bounds.left = x - info.width * info.originX;
         view.bounds.right = view.bounds.left + info.width;
@@ -374,8 +387,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createCreepView(): CreepView {
-    const shadow = this.add.image(0, 1, CREEP_SHADOW_KEY).setAlpha(0.35);
-    const body = this.add.image(0, -4, CREEP_BODY_KEY);
+    const shadow = this.add
+      .image(0, 1, CREEP_SHADOW_KEY)
+      .setScale(D)
+      .setAlpha(0.35);
+    const body = this.add.image(0, -4, CREEP_BODY_KEY).setScale(D);
     const hpBg = this.add
       .rectangle(-HP_BAR_WIDTH / 2, -12, HP_BAR_WIDTH, 2, 0x111111)
       .setOrigin(0, 0.5);
@@ -451,7 +467,10 @@ export class GameScene extends Phaser.Scene {
     for (const projectile of lane.projectiles) {
       let view = this.projectiles.get(projectile.id);
       if (!view) {
-        view = { image: this.add.image(0, 0, PROJECTILE_KEY), seen: 0 };
+        view = {
+          image: this.add.image(0, 0, PROJECTILE_KEY).setScale(D),
+          seen: 0,
+        };
         this.projectiles.set(projectile.id, view);
       }
       const g = interpolatePos(
@@ -531,7 +550,10 @@ export class GameScene extends Phaser.Scene {
     const text =
       this.damageTextPool.pop()?.setActive(true).setVisible(true) ??
       this.add
-        .text(0, 0, '', DAMAGE_TEXT_STYLE)
+        .text(0, 0, '', {
+          ...DAMAGE_TEXT_STYLE,
+          resolution: textResolution(this),
+        })
         .setOrigin(0.5, 1)
         .setDepth(DEPTH_FX);
     text
@@ -561,6 +583,7 @@ export class GameScene extends Phaser.Scene {
       const dist = 10 + Math.random() * 6;
       const particle = this.add
         .image(x, y, PARTICLE_KEY)
+        .setScale(D)
         .setTint(CREEP_COLOR)
         .setDepth(DEPTH_FX - 1);
       this.tweens.add({
@@ -568,7 +591,7 @@ export class GameScene extends Phaser.Scene {
         x: x + Math.cos(angle) * dist,
         y: y + Math.sin(angle) * dist * 0.5,
         alpha: 0,
-        scale: 0.4,
+        scale: 0.4 * D,
         duration: 380,
         ease: 'Quad.easeOut',
         onComplete: () => particle.destroy(),
@@ -581,8 +604,8 @@ export class GameScene extends Phaser.Scene {
     if (!sprite || this.tweens.isTweening(sprite)) return;
     this.tweens.add({
       targets: sprite,
-      scaleX: 1.04,
-      scaleY: 0.94,
+      scaleX: 1.04 * D,
+      scaleY: 0.94 * D,
       duration: 60,
       yoyo: true,
       ease: 'Quad.easeOut',
@@ -838,6 +861,7 @@ export class GameScene extends Phaser.Scene {
     const g = (this.flowGraphics ??= this.add.graphics().setDepth(DEPTH_DEBUG));
     g.lineStyle(1, 0xffffff, 0.55);
     const w = lane.width;
+    const style = { ...FLOW_TEXT_STYLE, resolution: textResolution(this) };
     for (let i = 0; i < dist.length; i++) {
       const d = dist[i] ?? -1;
       if (d < 0) continue;
@@ -846,7 +870,7 @@ export class GameScene extends Phaser.Scene {
       const c = gridToScreen(x + 0.5, y + 0.5);
       this.flowTexts.push(
         this.add
-          .text(c.x, c.y - 2, String(d), FLOW_TEXT_STYLE)
+          .text(c.x, c.y - 2, String(d), style)
           .setOrigin(0.5)
           .setDepth(DEPTH_DEBUG + 1),
       );

@@ -11,17 +11,18 @@ import {
 } from '@td/shared';
 import {
   buildSolidMask,
+  buildTowerMask,
   cellIndex,
   footprintCells,
   inBounds,
-  type SolidSource,
+  type WalkSource,
 } from './grid.js';
 import { computeFlowField } from './flowfield.js';
 import { isKnownTowerType } from './model.js';
 
 export interface PlacementContext {
   readonly phase: GamePhase;
-  readonly lane: SolidSource & {
+  readonly lane: WalkSource & {
     readonly spawn: GridPos;
     readonly exit: GridPos;
   };
@@ -55,14 +56,14 @@ export function checkPlacement(
   const spawnIndex = cellIndex(lane, lane.spawn.x, lane.spawn.y);
   const exitIndex = cellIndex(lane, lane.exit.x, lane.exit.y);
   for (const i of indices) {
-    if (lane.blocked[i] === true || i === spawnIndex || i === exitIndex)
+    // Only ground is buildable: the road (incl. spawn and exit) and rocks are not.
+    if (lane.cells[i] !== 'ground' || i === spawnIndex || i === exitIndex)
       return 'CellBlocked';
   }
 
-  const solid = buildSolidMask(lane);
+  const towerMask = buildTowerMask(lane);
   for (const i of indices) {
-    // Map-blocked cells were rejected above, so a solid cell here is a tower footprint.
-    if (solid[i] === true) return 'OverlapsTower';
+    if (towerMask[i] === true) return 'OverlapsTower';
   }
 
   const creepCells = ctx.creepCells();
@@ -70,6 +71,10 @@ export function checkPlacement(
     if (creepCells.includes(i)) return 'OverlapsCreep';
   }
 
+  // Creeps only stand on walkable cells, so OverlapsCreep and BlocksPath can only trigger on maps
+  // with walkable ground. The road always links spawn and exit, so BlocksPath in practice means
+  // a creep walking on ground would be trapped.
+  const solid = buildSolidMask(lane);
   for (const i of indices) solid[i] = true;
   const field = computeFlowField(
     lane.width,

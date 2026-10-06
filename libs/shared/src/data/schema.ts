@@ -46,8 +46,21 @@ export interface MapDef {
   readonly height: number;
   readonly spawn: GridPos;
   readonly exit: GridPos;
-  /** Permanently solid cells (unbuildable, unwalkable). */
-  readonly blocked: readonly GridPos[];
+  /**
+   * The road, as ordered waypoints of an axis-aligned polyline (consecutive waypoints share x or y).
+   * The sim expands it to cells. First waypoint = `spawn`, last waypoint = `exit`.
+   */
+  readonly path: readonly GridPos[];
+  /** Road width in cells (default 1); extra cells are added on the right/bottom side of each segment. */
+  readonly pathWidth?: number;
+  /** Decorative solid cells (neither walkable nor buildable). Must not lie on the road. */
+  readonly rocks?: readonly GridPos[];
+  /**
+   * Default false: creeps only walk on the road. When true, ground cells are walkable too (open-field
+   * mazing, e.g. for later PvP maps); towers on ground then reshape the route and the anti-block
+   * rules (`BlocksPath`, `OverlapsCreep`) matter again.
+   */
+  readonly groundWalkable?: boolean;
 }
 
 export interface EconomyDef {

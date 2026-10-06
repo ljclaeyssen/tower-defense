@@ -1,4 +1,4 @@
-import { ECONOMY, TOWERS, type GameEvent } from '@td/shared';
+import { CREEPS, ECONOMY, TOWERS, type GameEvent } from '@td/shared';
 import type { Game } from './api.js';
 import { createGame } from './game.js';
 import { cellIndex, footprintCells } from './grid.js';
@@ -64,18 +64,20 @@ describe('tower upgrade and sell', () => {
       ok: false,
       reason: 'NotOwner',
     });
-
-    // Earn enough gold (income + bounties of the waves) to reach the last level.
-    expect(game.apply({ type: 'UpgradeTower', towerId: 1 }, 0).ok).toBe(true);
+    // Max level: a PvE game on the real serpentine map, where the long route leaves time to earn
+    // the gold (income + bounties) for the last level.
+    const pve = createGame(pveConfig(), 1);
+    expect(place(pve, 5, 6).ok).toBe(true); // ground next to the x=4 road
+    expect(pve.apply({ type: 'UpgradeTower', towerId: 1 }, 0).ok).toBe(true);
     let ticks = 0;
-    while (gold(game) < cost(3) && ticks < 5000) {
-      stepN(game, 1);
+    while (gold(pve) < cost(3) && ticks < 5000) {
+      stepN(pve, 1);
       ticks++;
     }
-    expect(gold(game)).toBeGreaterThanOrEqual(cost(3));
-    expect(game.apply({ type: 'UpgradeTower', towerId: 1 }, 0).ok).toBe(true);
-    expect(game.getState().lanes[0]?.towers[0]?.level).toBe(LEVELS.length);
-    expect(game.apply({ type: 'UpgradeTower', towerId: 1 }, 0)).toEqual({
+    expect(gold(pve)).toBeGreaterThanOrEqual(cost(3));
+    expect(pve.apply({ type: 'UpgradeTower', towerId: 1 }, 0).ok).toBe(true);
+    expect(pve.getState().lanes[0]?.towers[0]?.level).toBe(LEVELS.length);
+    expect(pve.apply({ type: 'UpgradeTower', towerId: 1 }, 0)).toEqual({
       ok: false,
       reason: 'MaxLevel',
     });
@@ -205,9 +207,11 @@ describe('projectiles', () => {
     );
     const hits = creepEvents.filter((e) => e.type === 'CreepHit');
     const damage = LEVELS[0]?.damage ?? 0;
-    expect(hits.length).toBe(Math.ceil(60 / damage));
+    expect(hits.length).toBe(Math.ceil(CREEPS.beetle.hp / damage));
     hits.forEach((h, i) =>
-      expect(h.type === 'CreepHit' && h.hpAfter).toBe(60 - damage * (i + 1)),
+      expect(h.type === 'CreepHit' && h.hpAfter).toBe(
+        CREEPS.beetle.hp - damage * (i + 1),
+      ),
     );
     expect(creepEvents.slice(-2).map((e) => e.type)).toEqual([
       'GoldChanged',

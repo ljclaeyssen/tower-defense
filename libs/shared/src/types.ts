@@ -23,3 +23,11 @@ export type GameMode = 'pve' | 'pvp';
 export type GamePhase = 'waiting' | 'running' | 'ended';
 
 export type GameResult = 'victory' | 'defeat' | 'draw';
+
+/**
+ * Kind of a map cell.
+ * - `ground`: buildable, not walkable (unless the map sets `groundWalkable`).
+ * - `path`: the road; walkable, never buildable.
+ * - `rock`: decoration; neither walkable nor buildable.
+ */
+export type CellKind = 'ground' | 'path' | 'rock';

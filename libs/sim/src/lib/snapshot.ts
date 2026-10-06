@@ -57,7 +57,8 @@ const toLaneState = (lane: SimLane): LaneState => ({
   spawn: { x: lane.spawn.x, y: lane.spawn.y },
   exit: { x: lane.exit.x, y: lane.exit.y },
   // Never mutated in place by the sim (the flow field is replaced on recompute): safe to share.
-  blocked: lane.blocked,
+  cells: lane.cells,
+  groundWalkable: lane.groundWalkable,
   towers: lane.towers.map(toTowerState),
   creeps: lane.creeps.map(toCreepState),
   projectiles: lane.projectiles.map(toProjectileState),

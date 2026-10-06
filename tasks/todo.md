@@ -13,7 +13,8 @@
 - [x] Fixes found in playtest: Vite prebundle exclude for workspace libs, camera size sync, tower panel offset above the PrimeUI badge
 - [x] Published: public GitHub repo + static front live at https://tower-defense.ljclaeyssen.fr (Caddy, VPS)
 - [ ] Owner sets repo secrets VPS_HOST / VPS_USER / VPS_SSH_KEY for the deploy workflow
-- [ ] Owner playtest and feedback
+- [x] Playtest feedback round 1: HiDPI/supersampled rendering, drawn serpentine road instead of open-field mazing
+- [ ] Owner playtest and feedback (round 2)
 
 ## Phase 2 — art pipeline (generators, atlas, gallery, effects)
 

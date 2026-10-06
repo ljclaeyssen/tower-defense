@@ -148,3 +148,31 @@ export function isTypingTarget(target: unknown): boolean {
   const tag = typeof el.tagName === 'string' ? el.tagName.toUpperCase() : '';
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
+
+/** Smallest power of two >= n (n >= 1). */
+export function nextPowerOfTwo(n: number): number {
+  let p = 1;
+  while (p < n) p *= 2;
+  return p;
+}
+
+/** Highest device pixel ratio honoured (beyond it the GPU fill-rate cost outweighs the sharpness). */
+export const MAX_PIXEL_RATIO = 3;
+
+/** Sanitized device pixel ratio in [1, MAX_PIXEL_RATIO]. */
+export function clampPixelRatio(dpr: number | undefined): number {
+  if (dpr === undefined || !Number.isFinite(dpr) || dpr < 1) return 1;
+  return Math.min(dpr, MAX_PIXEL_RATIO);
+}
+
+/** Canvas backing-store size (device pixels, at least 1x1) for a CSS box and a pixel ratio. */
+export function backingSize(
+  cssWidth: number,
+  cssHeight: number,
+  dpr: number,
+): { width: number; height: number } {
+  return {
+    width: Math.max(1, Math.round(cssWidth * dpr)),
+    height: Math.max(1, Math.round(cssHeight * dpr)),
+  };
+}

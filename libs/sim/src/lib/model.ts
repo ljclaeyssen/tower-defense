@@ -1,5 +1,6 @@
 import {
   CREEPS,
+  type CellKind,
   TOWERS,
   type CreepTypeId,
   type EntityId,
@@ -79,7 +80,8 @@ export interface SimLane {
   readonly height: number;
   readonly spawn: GridPos;
   readonly exit: GridPos;
-  readonly blocked: readonly boolean[];
+  readonly cells: readonly CellKind[];
+  readonly groundWalkable: boolean;
   towers: SimTower[];
   creeps: SimCreep[];
   projectiles: SimProjectile[];

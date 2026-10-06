@@ -7,20 +7,20 @@ import { pveConfig, stepN } from './testing.js';
 
 /** Scripted commands keyed by the tick before which they are applied. */
 const SCRIPT: ReadonlyArray<readonly [number, Command]> = [
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 6, y: 8 } }],
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 10, y: 5 } }],
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 14, y: 8 } }],
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 18, y: 5 } }], // NotEnoughGold
+  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 6, y: 4 } }],
+  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 12, y: 9 } }],
+  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 18, y: 4 } }],
+  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 14, y: 6 } }], // NotEnoughGold
   [250, { type: 'StartWave' }],
-  [400, { type: 'UpgradeTower', towerId: 1 }],
-  [700, { type: 'UpgradeTower', towerId: 2 }],
-  [900, { type: 'SellTower', towerId: 3 }],
-  [905, { type: 'PlaceTower', towerType: 'archer', pos: { x: 14, y: 6 } }], // may hit a creep
-  [1100, { type: 'PlaceTower', towerType: 'archer', pos: { x: 3, y: 4 } }],
-  [1300, { type: 'UpgradeTower', towerId: 1 }],
-  [1500, { type: 'UpgradeTower', towerId: 2 }],
+  [700, { type: 'UpgradeTower', towerId: 1 }], // NotEnoughGold
+  [1000, { type: 'UpgradeTower', towerId: 2 }],
+  [1200, { type: 'SellTower', towerId: 3 }],
+  [1205, { type: 'PlaceTower', towerType: 'archer', pos: { x: 17, y: 8 } }],
+  [1400, { type: 'UpgradeTower', towerId: 3 }], // TowerNotFound (sold)
+  [1500, { type: 'PlaceTower', towerType: 'archer', pos: { x: 1, y: 10 } }],
+  [1600, { type: 'UpgradeTower', towerId: 1 }],
   [1700, { type: 'SellTower', towerId: 2 }],
-  [1750, { type: 'PlaceTower', towerType: 'archer', pos: { x: 12, y: 9 } }],
+  [1750, { type: 'PlaceTower', towerType: 'archer', pos: { x: 8, y: 9 } }],
 ];
 
 function runScript(seed: number): {

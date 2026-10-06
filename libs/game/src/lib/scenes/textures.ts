@@ -2,20 +2,49 @@ import * as Phaser from 'phaser';
 import { TOWER_FOOTPRINT, TOWER_TYPE_IDS, getTowerDef } from '@td/shared';
 import type { Team, TowerTypeId } from '@td/shared';
 import { TILE_H, TILE_W } from '../iso.js';
+import { GROUND_KINDS } from '../ground.js';
+import type { GroundKind } from '../ground.js';
+import { nextPowerOfTwo } from '../render-math.js';
 
 /**
  * Procedural placeholder art: every texture is drawn once with a Graphics object and baked with
  * `generateTexture` (Canvas API, so no gradients). Textures are global to the Phaser.Game.
+ *
+ * Textures are supersampled: drawn TEXTURE_SCALE times larger than their logical (world) size and
+ * padded to power-of-two dimensions so WebGL can mipmap them. Every consumer displays them with
+ * `setScale(TEXTURE_DISPLAY_SCALE)`; the content stays centered in the padded texture, so the default
+ * 0.5 origin still points at the content center. All sizes below are logical (world px).
  */
 
-export const GROUND_KINDS = [
-  'grass-a',
-  'grass-b',
-  'blocked',
-  'spawn',
-  'exit',
-] as const;
-export type GroundKind = (typeof GROUND_KINDS)[number];
+/** Supersampling factor of the baked textures. */
+export const TEXTURE_SCALE = 4;
+/** Scale that displays a baked texture at its logical size. */
+export const TEXTURE_DISPLAY_SCALE = 1 / TEXTURE_SCALE;
+
+/** Physical (texture px) size of a baked texture and offset of its content inside it. */
+function bakedLayout(
+  width: number,
+  height: number,
+): {
+  readonly width: number;
+  readonly height: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+} {
+  const w = Math.ceil(width * TEXTURE_SCALE);
+  const h = Math.ceil(height * TEXTURE_SCALE);
+  const pw = nextPowerOfTwo(w);
+  const ph = nextPowerOfTwo(h);
+  return {
+    width: pw,
+    height: ph,
+    offsetX: (pw - w) / 2,
+    offsetY: (ph - h) / 2,
+  };
+}
+
+export { GROUND_KINDS } from '../ground.js';
+export type { GroundKind } from '../ground.js';
 
 export const groundTextureKey = (kind: GroundKind): string => `ground-${kind}`;
 export const GROUND_FLASH_KEY = 'ground-flash';
@@ -33,9 +62,29 @@ export const CREEP_COLOR = 0x8a7a44;
 const GROUND_COLORS: Record<GroundKind, number> = {
   'grass-a': 0x4a7c3a,
   'grass-b': 0x548a42,
-  blocked: 0x3a3f47,
+  'path-a': 0x8a6a3f,
+  'path-b': 0x7a5c36,
+  rock: 0x5f646b,
   spawn: 0x3fae5a,
   exit: 0xb83b3b,
+};
+/** Darker edge of road tiles, so the route reads clearly against the grass. */
+const PATH_OUTLINE = 0x3f2c17;
+/** Cobble specks per road tone (logical tile coordinates: x, y, width, height). */
+const PATH_SPECKS: Record<
+  'path-a' | 'path-b',
+  readonly (readonly [number, number, number, number])[]
+> = {
+  'path-a': [
+    [11, 6, 4, 2],
+    [20, 9, 5, 2],
+    [15, 11, 3, 1.5],
+  ],
+  'path-b': [
+    [13, 9, 5, 2],
+    [19, 5, 3, 1.5],
+    [9, 8, 3, 1.5],
+  ],
 };
 
 /** Stone palette per tower type: top (lightest), left (lighter) and right (darker) faces. */
@@ -55,11 +104,15 @@ const TOWER_HALF_H = TOWER_HALF_W / 2;
 
 export interface TowerTextureInfo {
   readonly key: string;
+  /** Logical size of the drawn prism area (for bounds, hit tests and occlusion). */
   readonly width: number;
   readonly height: number;
-  /** Origin that puts the footprint center (the anchor) at the sprite position. */
+  /** Anchor (footprint center) as a ratio of the logical content area. */
   readonly originX: number;
   readonly originY: number;
+  /** Anchor as a ratio of the padded baked texture: pass these to `setOrigin`. */
+  readonly displayOriginX: number;
+  readonly displayOriginY: number;
 }
 
 export function towerTexture(
@@ -70,12 +123,17 @@ export function towerTexture(
   const h = towerHeightPx(level);
   const width = TILE_W * TOWER_FOOTPRINT;
   const height = h + TILE_H * TOWER_FOOTPRINT;
+  const anchorY = h + (TILE_H * TOWER_FOOTPRINT) / 2;
+  const layout = bakedLayout(width, height);
   return {
     key: `tower-${type}-${level}-${team}`,
     width,
     height,
     originX: 0.5,
-    originY: (h + (TILE_H * TOWER_FOOTPRINT) / 2) / height,
+    originY: anchorY / height,
+    displayOriginX:
+      (layout.offsetX + (width / 2) * TEXTURE_SCALE) / layout.width,
+    displayOriginY: (layout.offsetY + anchorY * TEXTURE_SCALE) / layout.height,
   };
 }
 
@@ -85,7 +143,7 @@ export function ensureTextures(scene: Phaser.Scene): void {
   try {
     for (const kind of GROUND_KINDS) {
       bake(scene, g, groundTextureKey(kind), TILE_W, TILE_H, () =>
-        drawGroundTile(g, GROUND_COLORS[kind]),
+        drawGroundTile(g, kind),
       );
     }
     bake(scene, g, GROUND_FLASH_KEY, TILE_W, TILE_H, () => {
@@ -131,9 +189,13 @@ function bake(
   draw: () => void,
 ): void {
   if (scene.textures.exists(key)) return;
+  const layout = bakedLayout(width, height);
   g.clear();
+  // Canvas transform: coordinates and line widths below are logical, rasterized TEXTURE_SCALE x.
+  g.translateCanvas(layout.offsetX, layout.offsetY);
+  g.scaleCanvas(TEXTURE_SCALE, TEXTURE_SCALE);
   draw();
-  g.generateTexture(key, width, height);
+  g.generateTexture(key, layout.width, layout.height);
 }
 
 /** Adds a closed diamond path centered on (cx, cy) with the given half extents. */
@@ -152,10 +214,31 @@ export function diamondPath(
   g.closePath();
 }
 
-function drawGroundTile(g: Phaser.GameObjects.Graphics, color: number): void {
-  diamondPath(g, TILE_W / 2, TILE_H / 2, TILE_W / 2, TILE_H / 2);
-  g.fillStyle(color, 1).fillPath();
-  diamondPath(g, TILE_W / 2, TILE_H / 2, TILE_W / 2 - 0.5, TILE_H / 2 - 0.5);
+function drawGroundTile(
+  g: Phaser.GameObjects.Graphics,
+  kind: GroundKind,
+): void {
+  const cx = TILE_W / 2;
+  const cy = TILE_H / 2;
+  diamondPath(g, cx, cy, TILE_W / 2, TILE_H / 2);
+  g.fillStyle(GROUND_COLORS[kind], 1).fillPath();
+
+  if (kind === 'path-a' || kind === 'path-b') {
+    g.fillStyle(0x000000, 0.14);
+    for (const [x, y, w, h] of PATH_SPECKS[kind]) g.fillEllipse(x, y, w, h);
+    g.fillStyle(0xffffff, 0.08).fillEllipse(cx - 2, cy - 1, 6, 2);
+    diamondPath(g, cx, cy, TILE_W / 2 - 0.5, TILE_H / 2 - 0.5);
+    g.lineStyle(1, PATH_OUTLINE, 0.5).strokePath();
+    return;
+  }
+  if (kind === 'rock') {
+    // A small boulder sitting on the grey tile: shadow, body, highlight, outline.
+    g.fillStyle(0x000000, 0.25).fillEllipse(cx + 1, cy + 2.5, 14, 5);
+    g.fillStyle(0x41454b, 1).fillEllipse(cx, cy, 12, 8);
+    g.fillStyle(0x8a9098, 0.6).fillEllipse(cx - 2, cy - 2, 5, 2.5);
+    g.lineStyle(0.75, 0x2a2d31, 1).strokeEllipse(cx, cy, 12, 8);
+  }
+  diamondPath(g, cx, cy, TILE_W / 2 - 0.5, TILE_H / 2 - 0.5);
   g.lineStyle(1, 0x000000, 0.18).strokePath();
 }
 

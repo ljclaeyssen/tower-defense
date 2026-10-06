@@ -10,6 +10,7 @@ import {
   type GameEvent,
   type GameState,
   type GridPos,
+  type CellKind,
   type MapDef,
   type PlayerId,
   type RejectReason,
@@ -21,7 +22,7 @@ import {
   updateCreeps,
 } from './creeps.js';
 import { addGold, applyIncome } from './economy.js';
-import { cellIndex, inBounds } from './grid.js';
+import { buildCells } from './grid.js';
 import { hashWorld } from './hash.js';
 import {
   allocId,
@@ -46,18 +47,20 @@ import {
   updateWaves,
 } from './waves.js';
 
-function createLane(playerId: PlayerId, map: MapDef): SimLane {
-  const blocked = new Array<boolean>(map.width * map.height).fill(false);
-  for (const b of map.blocked) {
-    if (inBounds(map, b.x, b.y)) blocked[cellIndex(map, b.x, b.y)] = true;
-  }
+/** The cell kinds are shared by all lanes (never mutated); groundWalkable defaults to false. */
+function createLane(
+  playerId: PlayerId,
+  map: MapDef,
+  cells: readonly CellKind[],
+): SimLane {
   const lane: SimLane = {
     playerId,
     width: map.width,
     height: map.height,
     spawn: { x: map.spawn.x, y: map.spawn.y },
     exit: { x: map.exit.x, y: map.exit.y },
-    blocked,
+    cells,
+    groundWalkable: map.groundWalkable ?? false,
     towers: [],
     creeps: [],
     projectiles: [],
@@ -79,6 +82,7 @@ function createWorld(config: GameConfig, seed: number): World {
       );
   });
   const map = config.mapOverride ?? getMapDef(config.mapId);
+  const cells = buildCells(map); // validates the road (spawn/exit waypoints, bounds, rocks)
   const players: SimPlayer[] = config.players.map((p) => ({
     id: p.id,
     team: p.team,
@@ -99,7 +103,7 @@ function createWorld(config: GameConfig, seed: number): World {
       remainingToSpawn: 0,
     },
     players,
-    lanes: players.map((p) => createLane(p.id, map)),
+    lanes: players.map((p) => createLane(p.id, map, cells)),
     result: null,
     winnerId: null,
     nextId: 1,
