@@ -7,17 +7,17 @@ import { pveConfig, stepN } from './testing.js';
 
 /** Scripted commands keyed by the tick before which they are applied: one human tower of each role. */
 const SCRIPT: ReadonlyArray<readonly [number, Command]> = [
-  [0, { type: 'PlaceTower', towerType: 'human-archer', pos: { x: 6, y: 10 } }],
+  [0, { type: 'PlaceTower', towerType: 'human-archer', pos: { x: 6, y: 11 } }],
   [
     0,
-    { type: 'PlaceTower', towerType: 'human-frostmage', pos: { x: 6, y: 7 } },
+    { type: 'PlaceTower', towerType: 'human-frostmage', pos: { x: 6, y: 8 } },
   ],
   [
     0,
     {
       type: 'PlaceTower',
       towerType: 'human-stormcaller',
-      pos: { x: 12, y: 3 },
+      pos: { x: 11, y: 3 },
     },
   ], // NotEnoughGold
   [250, { type: 'StartWave' }],
@@ -26,18 +26,18 @@ const SCRIPT: ReadonlyArray<readonly [number, Command]> = [
     {
       type: 'PlaceTower',
       towerType: 'human-stormcaller',
-      pos: { x: 12, y: 3 },
+      pos: { x: 11, y: 3 },
     },
   ],
   [
     1000,
-    { type: 'PlaceTower', towerType: 'human-cannon', pos: { x: 12, y: 6 } },
+    { type: 'PlaceTower', towerType: 'human-cannon', pos: { x: 11, y: 6 } },
   ], // NotEnoughGold
   [1100, { type: 'UpgradeTower', towerId: 1 }],
   [1200, { type: 'SellTower', towerId: 2 }],
   [
     1205,
-    { type: 'PlaceTower', towerType: 'human-frostmage', pos: { x: 17, y: 8 } },
+    { type: 'PlaceTower', towerType: 'human-frostmage', pos: { x: 16, y: 8 } },
   ],
   [1400, { type: 'UpgradeTower', towerId: 1 }], // NotEnoughGold
   [1600, { type: 'UpgradeTower', towerId: 2 }], // TowerNotFound (sold)

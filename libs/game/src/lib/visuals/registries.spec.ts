@@ -82,6 +82,21 @@ describe('projectile registry', () => {
     expect(resolveProjectile('boulder-undead').shape).toBe('boulder');
   });
 
+  it('derives the bolt shape and the pierce chain style (arc by default, bolt for bolts)', () => {
+    expect(resolveProjectile('bolt-dwarves').shape).toBe('bolt');
+    expect(resolveProjectile('bolt-dwarves').chain).toBe('bolt');
+    for (const id of [
+      'arrow-humans',
+      'swirl-humans',
+      'shard-orcs',
+      'boulder-undead',
+    ]) {
+      expect(resolveProjectile(id).chain).toBe('arc');
+    }
+    expect(MISSING_PROJECTILE.chain).toBe('arc');
+    expect(allProjectileVisualIds()).toContain('bolt-dwarves');
+  });
+
   it('tints by faction', () => {
     expect(resolveProjectile('swirl-elves').color).not.toBe(
       resolveProjectile('swirl-orcs').color,

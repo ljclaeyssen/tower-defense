@@ -1,7 +1,7 @@
-import { getMapDef } from '@td/shared';
+import { getMapDef, getTowerLevel } from '@td/shared';
 import { computeFlowField } from './flowfield.js';
 import { createGame } from './game.js';
-import { cellIndex, expandPath, footprintCells } from './grid.js';
+import { cellIndex, expandPath, footprintCells, towerCenter } from './grid.js';
 import { validatePlacement } from './placement.js';
 import { OPEN_MAP, place, pveConfig } from './testing.js';
 
@@ -196,17 +196,56 @@ describe('basic map (serpentine road)', () => {
     });
   });
 
-  it('zig-zags through four vertical runs with 5-cell-wide ground corridors in between', () => {
+  it('zig-zags through four vertical runs with 4-cell-wide (even) ground corridors in between', () => {
     const verticalXs = [
       ...new Set(road.filter((c, k) => road[k + 1]?.x === c.x).map((c) => c.x)),
     ];
-    expect(verticalXs).toEqual([4, 10, 16, 22]);
+    expect(verticalXs).toEqual([4, 9, 14, 19]);
     for (let i = 1; i < verticalXs.length; i++) {
-      expect((verticalXs[i] ?? 0) - (verticalXs[i - 1] ?? 0) - 1).toBe(5);
+      expect((verticalXs[i] ?? 0) - (verticalXs[i - 1] ?? 0) - 1).toBe(4);
     }
+    // Tail corridor after the last run (x20..23) is 4 wide too.
+    expect(map.width - 1 - (verticalXs.at(-1) ?? 0)).toBe(4);
     for (const x of verticalXs) {
       const ys = road.filter((c) => c.x === x).map((c) => c.y);
       expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it('a tower centered in a corridor at its U-turn is 2.5 cells from both runs and 1.5 from the turn', () => {
+    const state = game.getState();
+    const runs = [4, 9, 14, 19];
+    const roadSet = new Set(road.map(at));
+    for (let i = 1; i < runs.length; i++) {
+      const left = runs[i - 1] ?? 0;
+      const right = runs[i] ?? 0;
+      // The horizontal run joining these two vertical runs (row 13 at the bottom or row 2 at the top).
+      const turnY = [2, 13].find((y) => {
+        for (let x = left; x <= right; x++)
+          if (!roadSet.has(cellIndex(map, x, y))) return false;
+        return true;
+      });
+      expect(turnY).toBeDefined();
+      const ty = turnY ?? 0;
+      // Corridor x = left+1 .. right-1 (4 wide): the 2x2 footprint starts at left+2; it sits right
+      // next to the turn (rows ty-2..ty-1 for a bottom turn, ty+1..ty+2 for a top turn).
+      const pos = { x: left + 2, y: ty === 13 ? ty - 2 : ty + 1 };
+      expect(validatePlacement(state, 0, 'human-archer', pos)).toBeNull();
+      const c = towerCenter(pos);
+      const dist = (x: number, y: number) =>
+        Math.sqrt((c.x - x) * (c.x - x) + (c.y - y) * (c.y - y));
+      expect(dist(left + 0.5, c.y)).toBe(2.5);
+      expect(dist(right + 0.5, c.y)).toBe(2.5);
+      expect(dist(c.x, ty + 0.5)).toBe(1.5);
+      // e.g. corridor 1: tower (6,11), center (7,12), road cells (4.5,12.5), (9.5,12.5), (7,13.5).
+      const range = getTowerLevel('human-archer', 1).range;
+      for (const [x, y] of [
+        [left + 0.5, ty === 13 ? ty - 0.5 : ty + 1.5],
+        [right + 0.5, ty === 13 ? ty - 0.5 : ty + 1.5],
+        [c.x, ty + 0.5],
+      ] as const) {
+        expect(dist(x, y)).toBeLessThanOrEqual(range);
+      }
     }
   });
 

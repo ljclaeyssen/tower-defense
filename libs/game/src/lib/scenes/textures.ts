@@ -529,6 +529,26 @@ function drawProjectile(
       g.lineStyle(1, color, 1).strokeCircle(c, c, r);
       g.fillStyle(0xffffff, 1).fillCircle(c, c, r * 0.4);
       break;
+    case 'bolt': {
+      // Jagged spark pointing to +x (rotated along the flight): faint glow, then a bright core.
+      const zig: Point[] = [
+        [c - r, c + 0.5],
+        [c - r * 0.4, c - 1.5],
+        [c, c + 1.2],
+        [c + r * 0.45, c - 1.2],
+        [c + r, c],
+      ];
+      const stroke = (width: number, colour: number, alpha: number): void => {
+        g.lineStyle(width, colour, alpha);
+        g.beginPath();
+        zig.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)));
+        g.strokePath();
+      };
+      stroke(3, color, 0.35);
+      stroke(1.4, color, 1);
+      stroke(0.6, 0xffffff, 1);
+      break;
+    }
     case 'shard':
       diamondPath(g, c, c, r * 0.7, r * 1.3);
       g.fillStyle(color, 1).fillPath();

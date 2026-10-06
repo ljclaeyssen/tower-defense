@@ -1007,7 +1007,7 @@
           "behindRatio": 0.5
         },
         "projectile": {
-          "visual": "swirl-dwarves",
+          "visual": "bolt-dwarves",
           "speed": 0.4,
           "homing": true
         },
@@ -1024,7 +1024,7 @@
           "behindRatio": 0.6
         },
         "projectile": {
-          "visual": "swirl-dwarves",
+          "visual": "bolt-dwarves",
           "speed": 0.45,
           "homing": true
         },
@@ -1041,7 +1041,7 @@
           "behindRatio": 0.7
         },
         "projectile": {
-          "visual": "swirl-dwarves",
+          "visual": "bolt-dwarves",
           "speed": 0.5,
           "homing": true
         },

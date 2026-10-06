@@ -140,16 +140,17 @@ export function towerOf(faction: FactionId, role: TowerRole): TowerTypeId {
 }
 
 /**
- * Ground positions of the scripted build on the serpentine `basic` map, one per role, close to the
- * road U-turns so that even short-range towers (orcs) cover two or three road segments:
- * corridor 1 (between the x=4 and x=10 runs) near the bottom U-turn for single and slow,
- * corridor 2 (between x=10 and x=16) under the top U-turn (row 2) for pierce and burst.
+ * Ground positions of the scripted build on the serpentine `basic` map, one per role. Corridors are
+ * 4 cells wide, so a tower at x = 6 (corridor 1, x5..8) or x = 11 (corridor 2, x10..13) is centered:
+ * 2.5 cells from both vertical runs. Single and slow sit in corridor 1 near its bottom U-turn
+ * (row 13, 1.5 cells below the single tower), pierce and burst in corridor 2 under its top U-turn
+ * (row 2, 1.5 cells above the pierce tower).
  */
 export const BALANCE_POSITIONS: Readonly<Record<TowerRole, GridPos>> = {
-  single: { x: 6, y: 10 },
-  slow: { x: 6, y: 7 },
-  pierce: { x: 12, y: 3 },
-  burst: { x: 12, y: 6 },
+  single: { x: 6, y: 11 },
+  slow: { x: 6, y: 8 },
+  pierce: { x: 11, y: 3 },
+  burst: { x: 11, y: 6 },
 };
 
 /** Build order: single + slow fit the 150 starting gold, pierce and burst follow as gold allows. */

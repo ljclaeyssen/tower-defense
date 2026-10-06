@@ -56,6 +56,17 @@ import {
 } from './textures.js';
 import { modelIdOf } from '../visuals/model-registry.js';
 import { resolveProjectile } from '../visuals/projectile-registry.js';
+import type { ChainStyle } from '../visuals/projectile-registry.js';
+import {
+  BOLT_FADE_MS,
+  DueQueue,
+  GHOST_POSITION_MS,
+  MAX_PENDING_CHAIN_HITS,
+  chainHopMs,
+  hopArrival,
+  orderChainVictims,
+} from '../visuals/pierce-chain.js';
+import type { ChainVictim } from '../visuals/pierce-chain.js';
 
 export const GAME_SCENE_KEY = 'td-game';
 
@@ -89,6 +100,16 @@ const SLOW_FLASH = 0x6fb8ff;
 const SECONDARY_TEXT_SCALE = 0.75;
 const SECONDARY_TEXT_ALPHA = 0.7;
 const BURST_RING_COLOR = 0xffd27a;
+/** Pierce chain: arc height of a hop, trail cadence/fade, lightning jitter, victim spark. */
+const CHAIN_ARC_PX = 6;
+const CHAIN_TRAIL_INTERVAL_MS = 25;
+const CHAIN_TRAIL_FADE_MS = 140;
+const BOLT_SEGMENTS = 5;
+const BOLT_JITTER_PX = 3;
+const SPARK_MS = 120;
+/** Hops start and end at the creep body, slightly above the ground. */
+const CHAIN_BODY_OFFSET = 6;
+
 /** Safety cap of the burst projectile bookkeeping (entries normally live a few ticks). */
 const MAX_TRACKED_BURSTS = 256;
 
@@ -146,9 +167,48 @@ interface CreepView {
   /** Tint currently applied to the body. */
   tint: 'none' | 'slow' | 'flash';
   slowed: boolean;
+  /** Last known `distanceToExit` (orders pierce chains). */
+  distance: number;
   depth: number;
   readonly rect: Rect;
   seen: number;
+}
+
+/** Last rendered position of a destroyed creep view, kept briefly for pierce chains. */
+interface GhostPos {
+  x: number;
+  y: number;
+  distance: number;
+  until: number;
+}
+
+/** Pierce hits of one projectile gathered while processing a tick's events. */
+interface ChainBuild {
+  targetId: EntityId | null;
+  readonly victims: ChainVictim[];
+}
+
+/** A pierce back-travel animation in progress: hop k goes from ids[k - 1] to ids[k]. */
+interface ChainAnim {
+  style: ChainStyle;
+  textureKey: string;
+  color: number;
+  rotates: boolean;
+  readonly ids: EntityId[];
+  start: number;
+  hopMs: number;
+  /** Hop currently drawn (0 = none yet). */
+  hop: number;
+  sprite: Phaser.GameObjects.Image | null;
+  lastTrail: number;
+}
+
+/** Secondary damage number released when its hop arrives. */
+interface PendingHit {
+  creepId: EntityId;
+  damage: number;
+  /** Spark colour on arrival (lightning chains), or -1. */
+  spark: number;
 }
 
 interface ProjectileView {
@@ -208,6 +268,35 @@ export class GameScene extends Phaser.Scene {
   /** Burst projectiles in flight: projectile id -> source tower id (for the impact ring radius). */
   private readonly burstSources = new Map<EntityId, EntityId>();
 
+  // Pierce back-travel (all pooled).
+  /** Pierce projectiles in flight: projectile id -> visual key, until their hits are processed. */
+  private readonly pierceVisuals = new Map<EntityId, string>();
+  private readonly chainBuilds = new Map<EntityId, ChainBuild>();
+  private readonly chainBuildPool: ChainBuild[] = [];
+  private readonly victimPool: ChainVictim[] = [];
+  private readonly chains: ChainAnim[] = [];
+  private readonly chainPool: ChainAnim[] = [];
+  private readonly pendingHits = new DueQueue<PendingHit>();
+  private readonly pendingHitPool: PendingHit[] = [];
+  private readonly ghosts = new Map<EntityId, GhostPos>();
+  private readonly ghostPool: GhostPos[] = [];
+  private readonly hopSpritePool: Phaser.GameObjects.Image[] = [];
+  private readonly trailPool: Phaser.GameObjects.Image[] = [];
+  private readonly boltPool: Phaser.GameObjects.Graphics[] = [];
+  private readonly sparkPool: Phaser.GameObjects.Image[] = [];
+  private readonly boltJitter = new Float64Array(BOLT_SEGMENTS + 1);
+  /** Scene time of the current frame (for pooled callbacks). */
+  private nowMs = 0;
+  private readonly distanceOf = (creepId: EntityId): number | undefined =>
+    this.creeps.get(creepId)?.distance ?? this.ghosts.get(creepId)?.distance;
+  private readonly releaseHit = (hit: PendingHit): void => {
+    this.showSecondaryHit(hit.creepId, hit.damage, hit.spark);
+    this.pendingHitPool.push(hit);
+  };
+  private readonly discardHit = (hit: PendingHit): void => {
+    this.pendingHitPool.push(hit);
+  };
+
   private pointerX = 0;
   private pointerY = 0;
   private pointerInside = false;
@@ -217,6 +306,8 @@ export class GameScene extends Phaser.Scene {
   private readonly tmpScreen = { x: 0, y: 0 };
   private readonly tmpWorld = { x: 0, y: 0 };
   private readonly tmpPrev = { x: 0, y: 0 };
+  private readonly tmpFrom = { x: 0, y: 0 };
+  private readonly tmpTo = { x: 0, y: 0 };
 
   constructor() {
     super({ key: GAME_SCENE_KEY });
@@ -293,6 +384,7 @@ export class GameScene extends Phaser.Scene {
     this.processEvents(time);
     this.syncTowers(state, lane);
     this.syncCreeps(lane, prevLane, alpha, time);
+    this.advanceChains(time);
     this.syncProjectiles(lane, prevLane, alpha);
     this.applyOcclusion();
     this.updateGhost(state);
@@ -439,6 +531,7 @@ export class GameScene extends Phaser.Scene {
       flashUntil: 0,
       tint: 'none',
       slowed: false,
+      distance: 0,
       depth: 0,
       rect: { left: 0, top: 0, right: 0, bottom: 0 },
       seen: 0,
@@ -478,11 +571,13 @@ export class GameScene extends Phaser.Scene {
         view.hpFill.setFillStyle(hpColor(ratio));
       }
       view.slowed = creep.slowFactor < 1;
+      view.distance = creep.distanceToExit;
       this.refreshCreepTint(view, time);
       view.seen = frame;
     }
     for (const [id, view] of this.creeps) {
       if (view.seen === frame) continue;
+      this.rememberGhost(id, view, time);
       this.tweens.killTweensOf(view.body);
       view.container.destroy();
       this.creeps.delete(id);
@@ -533,7 +628,8 @@ export class GameScene extends Phaser.Scene {
       }
       if (view.visual !== projectile.visual) {
         view.visual = projectile.visual;
-        view.rotates = resolveProjectile(projectile.visual).shape === 'arrow';
+        const shape = resolveProjectile(projectile.visual).shape;
+        view.rotates = shape === 'arrow' || shape === 'bolt';
         view.image.setTexture(ensureProjectileTexture(this, projectile.visual));
       }
       const prevPos = this.prevProjectiles.get(projectile.id)?.pos;
@@ -558,6 +654,7 @@ export class GameScene extends Phaser.Scene {
       view.image.destroy();
       this.projectiles.delete(id);
       this.burstSources.delete(id);
+      this.pierceVisuals.delete(id);
     }
   }
 
@@ -592,13 +689,33 @@ export class GameScene extends Phaser.Scene {
     for (const event of events) {
       switch (event.type) {
         case 'CreepHit':
-          this.onCreepHit(
-            event.creepId,
-            event.projectileId,
-            event.damage,
-            event.primary,
-            time,
-          );
+          if (this.pierceVisuals.has(event.projectileId)) {
+            // Pierce: the primary hit is immediate, secondaries wait for the back-travel hops.
+            const build = this.chainBuildFor(event.projectileId);
+            if (event.primary) {
+              build.targetId = event.creepId;
+              this.onCreepHit(
+                event.creepId,
+                event.projectileId,
+                event.damage,
+                true,
+                time,
+              );
+            } else {
+              const victim = this.victimPool.pop() ?? { creepId: 0, damage: 0 };
+              victim.creepId = event.creepId;
+              victim.damage = event.damage;
+              build.victims.push(victim);
+            }
+          } else {
+            this.onCreepHit(
+              event.creepId,
+              event.projectileId,
+              event.damage,
+              event.primary,
+              time,
+            );
+          }
           break;
         case 'CreepSlowed': {
           const view = this.creeps.get(event.creepId);
@@ -610,6 +727,14 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'ProjectileFired':
           this.onProjectileFired(event.projectile.sourceTowerId);
+          if (event.projectile.kind === 'pierce') {
+            if (this.pierceVisuals.size >= MAX_TRACKED_BURSTS)
+              this.pierceVisuals.clear();
+            this.pierceVisuals.set(
+              event.projectile.id,
+              event.projectile.visual,
+            );
+          }
           if (event.projectile.kind === 'burst') {
             if (this.burstSources.size >= MAX_TRACKED_BURSTS)
               this.burstSources.clear();
@@ -626,6 +751,307 @@ export class GameScene extends Phaser.Scene {
           break;
       }
     }
+    if (this.chainBuilds.size > 0) this.startChains(time);
+  }
+
+  // ---- Pierce back-travel -----------------------------------------------------------------------
+
+  private chainBuildFor(projectileId: EntityId): ChainBuild {
+    let build = this.chainBuilds.get(projectileId);
+    if (!build) {
+      build = this.chainBuildPool.pop() ?? { targetId: null, victims: [] };
+      build.targetId = null;
+      this.chainBuilds.set(projectileId, build);
+    }
+    return build;
+  }
+
+  /** Turns the pierce hits gathered this frame into chains (or immediate numbers under backlog). */
+  private startChains(time: number): void {
+    for (const [projectileId, build] of this.chainBuilds) {
+      const visual = this.pierceVisuals.get(projectileId);
+      this.pierceVisuals.delete(projectileId);
+      const victims = build.victims;
+      if (victims.length > 0) {
+        orderChainVictims(victims, this.distanceOf);
+        const animate =
+          build.targetId !== null &&
+          visual !== undefined &&
+          this.pendingHits.size + victims.length <= MAX_PENDING_CHAIN_HITS;
+        if (animate && build.targetId !== null && visual !== undefined) {
+          this.startChain(time, build.targetId, victims, visual);
+        } else {
+          for (const v of victims)
+            this.showSecondaryHit(v.creepId, v.damage, -1);
+        }
+      }
+      for (const v of victims) this.victimPool.push(v);
+      victims.length = 0;
+      this.chainBuildPool.push(build);
+    }
+    this.chainBuilds.clear();
+  }
+
+  private startChain(
+    time: number,
+    targetId: EntityId,
+    victims: readonly ChainVictim[],
+    visual: string,
+  ): void {
+    const descriptor = resolveProjectile(visual);
+    const chain: ChainAnim = this.chainPool.pop() ?? {
+      style: 'arc',
+      textureKey: '',
+      color: 0,
+      rotates: false,
+      ids: [],
+      start: 0,
+      hopMs: 0,
+      hop: 0,
+      sprite: null,
+      lastTrail: 0,
+    };
+    chain.style = descriptor.chain;
+    chain.textureKey = ensureProjectileTexture(this, visual);
+    chain.color = descriptor.color;
+    chain.rotates = descriptor.shape === 'arrow' || descriptor.shape === 'bolt';
+    chain.start = time;
+    chain.hopMs = chainHopMs(victims.length);
+    chain.hop = 0;
+    chain.lastTrail = -Infinity;
+    chain.ids.length = 0;
+    chain.ids.push(targetId);
+    for (let k = 0; k < victims.length; k++) {
+      const v = victims[k];
+      if (!v) continue;
+      chain.ids.push(v.creepId);
+      const hit = this.pendingHitPool.pop() ?? {
+        creepId: 0,
+        damage: 0,
+        spark: -1,
+      };
+      hit.creepId = v.creepId;
+      hit.damage = v.damage;
+      hit.spark = chain.style === 'bolt' ? chain.color : -1;
+      this.pendingHits.push(hopArrival(time, k + 1, chain.hopMs), hit);
+    }
+    if (chain.style === 'arc') {
+      chain.sprite =
+        this.hopSpritePool.pop()?.setActive(true) ??
+        this.add.image(0, 0, chain.textureKey).setScale(D);
+      chain.sprite
+        .setTexture(chain.textureKey)
+        .setVisible(false)
+        .setDepth(DEPTH_FX - 4)
+        .setRotation(0);
+    } else {
+      chain.sprite = null;
+    }
+    this.chains.push(chain);
+  }
+
+  /** Per frame: expire ghosts, release due secondary hits, animate chains. */
+  private advanceChains(time: number): void {
+    this.nowMs = time;
+    if (this.ghosts.size > 0) {
+      for (const [id, ghost] of this.ghosts) {
+        if (ghost.until > time) continue;
+        this.ghosts.delete(id);
+        this.ghostPool.push(ghost);
+      }
+    }
+    if (this.pendingHits.size > 0)
+      this.pendingHits.popDue(time, this.releaseHit);
+    for (let i = this.chains.length - 1; i >= 0; i--) {
+      const chain = this.chains[i];
+      if (!chain || this.stepChain(chain, time)) continue;
+      this.releaseChain(chain);
+      const last = this.chains.pop();
+      if (last && last !== chain) this.chains[i] = last;
+    }
+  }
+
+  /** Draws the current hop of `chain`; false once the chain is over. */
+  private stepChain(chain: ChainAnim, time: number): boolean {
+    const hops = chain.ids.length - 1;
+    const elapsed = time - chain.start;
+    if (hops <= 0 || elapsed >= hops * chain.hopMs) return false;
+    const k = Math.min(hops, Math.floor(elapsed / chain.hopMs) + 1);
+    const from = this.creepPoint(chain.ids[k - 1], this.tmpFrom);
+    const to = this.creepPoint(chain.ids[k], this.tmpTo);
+    if (k !== chain.hop) {
+      chain.hop = k;
+      if (chain.style === 'bolt' && from && to)
+        this.spawnBolt(from, to, chain.color);
+    }
+    const sprite = chain.sprite;
+    if (!sprite) return true;
+    if (!from || !to) {
+      sprite.setVisible(false);
+      return true;
+    }
+    const t = (elapsed - (k - 1) * chain.hopMs) / chain.hopMs;
+    const x = from.x + (to.x - from.x) * t;
+    const y =
+      from.y + (to.y - from.y) * t - CHAIN_ARC_PX * Math.sin(Math.PI * t);
+    sprite.setVisible(true).setPosition(x, y);
+    if (chain.rotates)
+      sprite.setRotation(Math.atan2(to.y - from.y, to.x - from.x));
+    if (time - chain.lastTrail >= CHAIN_TRAIL_INTERVAL_MS) {
+      chain.lastTrail = time;
+      this.spawnTrail(x, y, chain.textureKey, sprite.rotation);
+    }
+    return true;
+  }
+
+  private releaseChain(chain: ChainAnim): void {
+    if (chain.sprite) {
+      chain.sprite.setVisible(false).setActive(false);
+      this.hopSpritePool.push(chain.sprite);
+      chain.sprite = null;
+    }
+    chain.ids.length = 0;
+    this.chainPool.push(chain);
+  }
+
+  /** Body position of a creep (live view, else its recent ghost), or null. */
+  private creepPoint(
+    creepId: EntityId | undefined,
+    out: { x: number; y: number },
+  ): { x: number; y: number } | null {
+    if (creepId === undefined) return null;
+    const view = this.creeps.get(creepId);
+    const source = view ? view.container : this.ghosts.get(creepId);
+    if (!source) return null;
+    out.x = source.x;
+    out.y = source.y - CHAIN_BODY_OFFSET;
+    return out;
+  }
+
+  private rememberGhost(id: EntityId, view: CreepView, time: number): void {
+    const ghost = this.ghosts.get(id) ??
+      this.ghostPool.pop() ?? { x: 0, y: 0, distance: 0, until: 0 };
+    ghost.x = view.container.x;
+    ghost.y = view.container.y;
+    ghost.distance = view.distance;
+    ghost.until = time + GHOST_POSITION_MS;
+    this.ghosts.set(id, ghost);
+  }
+
+  /** Delayed secondary hit: dim damage number + flash (live view) at the victim, spark for bolts. */
+  private showSecondaryHit(
+    creepId: EntityId,
+    damage: number,
+    spark: number,
+  ): void {
+    const view = this.creeps.get(creepId);
+    const source = view ? view.container : this.ghosts.get(creepId);
+    if (!source) return;
+    if (view) this.flashCreep(view, HIT_FLASH, this.nowMs);
+    this.spawnDamageText(source.x, source.y - 14, damage, false);
+    if (spark >= 0)
+      this.spawnSpark(source.x, source.y - CHAIN_BODY_OFFSET, spark);
+  }
+
+  private spawnTrail(
+    x: number,
+    y: number,
+    textureKey: string,
+    rotation: number,
+  ): void {
+    const trail =
+      this.trailPool.pop()?.setActive(true).setVisible(true) ??
+      this.add.image(0, 0, textureKey);
+    trail
+      .setTexture(textureKey)
+      .setPosition(x, y)
+      .setRotation(rotation)
+      .setScale(0.7 * D)
+      .setAlpha(0.5)
+      .setDepth(DEPTH_FX - 5);
+    this.tweens.add({
+      targets: trail,
+      alpha: 0,
+      scale: 0.3 * D,
+      duration: CHAIN_TRAIL_FADE_MS,
+      onComplete: () => {
+        trail.setActive(false).setVisible(false);
+        this.trailPool.push(trail);
+      },
+    });
+  }
+
+  /** Jagged lightning between two points: accent glow under a white core, fading out. */
+  private spawnBolt(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    color: number,
+  ): void {
+    const g =
+      this.boltPool.pop()?.setActive(true).setVisible(true) ??
+      this.add.graphics();
+    g.clear()
+      .setAlpha(1)
+      .setDepth(DEPTH_FX - 3);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const jitter = this.boltJitter;
+    for (let i = 0; i <= BOLT_SEGMENTS; i++) {
+      jitter[i] =
+        i === 0 || i === BOLT_SEGMENTS
+          ? 0
+          : (Math.random() * 2 - 1) * BOLT_JITTER_PX;
+    }
+    const stroke = (width: number, colour: number, alpha: number): void => {
+      g.lineStyle(width, colour, alpha);
+      g.beginPath();
+      for (let i = 0; i <= BOLT_SEGMENTS; i++) {
+        const t = i / BOLT_SEGMENTS;
+        const j = jitter[i] ?? 0;
+        const px = from.x + dx * t + nx * j;
+        const py = from.y + dy * t + ny * j;
+        if (i === 0) g.moveTo(px, py);
+        else g.lineTo(px, py);
+      }
+      g.strokePath();
+    };
+    stroke(4, color, 0.55);
+    stroke(2, 0xffffff, 1);
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      duration: BOLT_FADE_MS,
+      onComplete: () => {
+        g.setActive(false).setVisible(false);
+        this.boltPool.push(g);
+      },
+    });
+  }
+
+  /** Tiny flash on a lightning victim. */
+  private spawnSpark(x: number, y: number, color: number): void {
+    const spark =
+      this.sparkPool.pop()?.setActive(true).setVisible(true) ??
+      this.add.image(0, 0, PARTICLE_KEY);
+    spark
+      .setPosition(x, y)
+      .setTint(color)
+      .setScale(2.2 * D)
+      .setAlpha(1)
+      .setDepth(DEPTH_FX - 2);
+    this.tweens.add({
+      targets: spark,
+      scale: 0.4 * D,
+      alpha: 0,
+      duration: SPARK_MS,
+      onComplete: () => {
+        spark.setActive(false).setVisible(false);
+        this.sparkPool.push(spark);
+      },
+    });
   }
 
   private onCreepHit(
@@ -1058,6 +1484,16 @@ export class GameScene extends Phaser.Scene {
     this.damageTextPool.length = 0;
     this.ringPool.length = 0;
     this.burstSources.clear();
+    this.pierceVisuals.clear();
+    this.chainBuilds.clear();
+    this.chains.length = 0;
+    this.chainPool.length = 0;
+    this.pendingHits.flush(this.discardHit);
+    this.ghosts.clear();
+    this.hopSpritePool.length = 0;
+    this.trailPool.length = 0;
+    this.boltPool.length = 0;
+    this.sparkPool.length = 0;
     this.flowTexts = [];
     this.flowGraphics = null;
     this.exitFlash = null;
