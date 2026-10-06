@@ -549,6 +549,41 @@ function drawProjectile(
       stroke(0.6, 0xffffff, 1);
       break;
     }
+    case 'tornado':
+      // Grey-white funnel: soft disc and three spiral arms (spins in flight).
+      g.fillStyle(color, 0.25).fillCircle(c, c, r + 0.5);
+      spiralArms(g, c, c, r, 3, 1, color, 1);
+      g.fillStyle(0xffffff, 0.9).fillCircle(c, c, 0.9);
+      break;
+    case 'dust':
+      // Dust devil: dense brown swirl around a darker core.
+      g.fillStyle(color, 0.45).fillCircle(c, c, r + 0.5);
+      spiralArms(g, c, c, r, 5, 1.1, mixColor(color, 0xffffff, 0.25), 0.95);
+      g.fillStyle(mixColor(color, 0x000000, 0.45), 1).fillCircle(c, c, r * 0.4);
+      break;
+    case 'gust': {
+      // Pale crescent wind blade pointing to +x, with tiny leaf dots trailing behind.
+      g.fillStyle(color, 1);
+      g.beginPath();
+      g.arc(c - 1.5, c, r, -1.15, 1.15, false);
+      g.arc(c - 3, c, r * 0.8, 1.05, -1.05, true);
+      g.closePath();
+      g.fillPath();
+      g.fillStyle(mixColor(color, 0x2f8f3a, 0.6), 1);
+      g.fillEllipse(c - r + 0.5, c - 2, 1.6, 1);
+      g.fillEllipse(c - r - 0.5, c + 1.5, 1.4, 0.9);
+      g.fillEllipse(c - r + 1.5, c + 3, 1.2, 0.8);
+      break;
+    }
+    case 'wail':
+      // Translucent "scream" ring with a skull-like face.
+      g.fillStyle(color, 0.22).fillCircle(c, c, r);
+      g.lineStyle(1, color, 0.85).strokeCircle(c, c, r);
+      g.fillStyle(mixColor(color, 0x2a1b3d, 0.7), 0.9);
+      g.fillCircle(c - 1.4, c - 0.8, 0.8);
+      g.fillCircle(c + 1.4, c - 0.8, 0.8);
+      g.fillEllipse(c, c + 1.6, 1.2, 1.6);
+      break;
     case 'shard':
       diamondPath(g, c, c, r * 0.7, r * 1.3);
       g.fillStyle(color, 1).fillPath();
@@ -563,5 +598,35 @@ function drawProjectile(
       );
       g.lineStyle(0.5, 0x000000, 0.6).strokeCircle(c, c, r);
       break;
+  }
+}
+
+/** `arms` spiral arms around (cx, cy) growing to radius r, as stroked polylines. */
+function spiralArms(
+  g: Phaser.GameObjects.Graphics,
+  cx: number,
+  cy: number,
+  r: number,
+  arms: number,
+  width: number,
+  color: number,
+  alpha: number,
+): void {
+  const steps = 8;
+  const sweep = 2.4;
+  g.lineStyle(width, color, alpha);
+  for (let a = 0; a < arms; a++) {
+    const a0 = (a / arms) * Math.PI * 2;
+    g.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const angle = a0 + t * sweep;
+      const rad = 0.6 + t * (r - 0.6);
+      const x = cx + Math.cos(angle) * rad;
+      const y = cy + Math.sin(angle) * rad;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.strokePath();
   }
 }

@@ -174,3 +174,11 @@ dark, top lightest), grid cell 32×16 logical px, anchor at the footprint center
   case in the sim, one shape in the registries, one `roles.<role>` i18n key and one HUD stat line.
 - The shared spec (`libs/shared/src/lib.spec.ts`) enforces the invariants (one tower per role per
   faction, `attack.kind === role`, key naming); the sim balance spec plays each faction to victory.
+- **Targeting is composable per tower level** (`TowerLevelDef.targeting`): `order` (first, last,
+  strongest, weakest, nearest, farthest) + optional `filters` (e.g. `unslowed`, falling back to the
+  unfiltered pool when nothing passes) + `sticky` (default true). Slow towers use
+  `{ order: 'first', filters: ['unslowed'] }`. Adding an order or a filter = one case in
+  `libs/sim/src/lib/towers.ts` (`score` / `passes`) plus the shared union.
+- **Pierce chains** travel backwards hop by hop; the look comes from the projectile registry
+  (`shape`, `chain` style arc/bolt/streak/ripple, `spin`, `trail`, `impact`, `hitFlash`), derived
+  from the `projectile.visual` key: tornado-humans, gust-elves, dust-orcs, wail-undead, bolt-dwarves.

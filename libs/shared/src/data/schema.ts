@@ -50,7 +50,48 @@ export interface ProjectileDef {
   readonly homing: boolean;
 }
 
+/**
+ * Ranking of the candidate creeps (in range, after filters); ties always go to the lowest id.
+ * - `first` / `last`: lowest / highest `distanceToExit` (closest to / farthest from the exit).
+ * - `strongest` / `weakest`: highest / lowest current hp.
+ * - `nearest` / `farthest`: lowest / highest euclidean distance to the tower center.
+ */
+export type TargetOrder =
+  'first' | 'last' | 'strongest' | 'weakest' | 'nearest' | 'farthest';
+export const TARGET_ORDERS: readonly TargetOrder[] = [
+  'first',
+  'last',
+  'strongest',
+  'weakest',
+  'nearest',
+  'farthest',
+];
+
+/**
+ * Candidate filters. `unslowed`: the creep has no active slow (`slowFactor === 1`).
+ * More filters can be added later (e.g. 'full-hp', 'flying').
+ */
+export type TargetFilter = 'unslowed';
+export const TARGET_FILTERS: readonly TargetFilter[] = ['unslowed'];
+
+/**
+ * How a tower picks its target, composed from building blocks:
+ * candidates = creeps of the lane within range; if `filters` are set, keep those passing every
+ * filter, falling back to all candidates when none passes; then rank by `order` (tie: lowest id).
+ * With `sticky` (default true) the current target is kept while it is still one of these
+ * candidates (alive, in range and passing the filters, or any candidate in the fallback case).
+ */
+export interface TargetingDef {
+  readonly order: TargetOrder;
+  readonly filters?: readonly TargetFilter[];
+  /** Default true. */
+  readonly sticky?: boolean;
+}
+export const DEFAULT_TARGETING: TargetingDef = { order: 'first' };
+
 export interface TowerLevelDef {
+  /** Targeting at this level (default `DEFAULT_TARGETING`: sticky, first). */
+  readonly targeting?: TargetingDef;
   /** Gold to reach this level (level 1 = build cost). */
   readonly cost: number;
   readonly damage: number;

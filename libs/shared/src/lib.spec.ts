@@ -7,6 +7,9 @@ import {
   MAPS,
   TOWERS,
   TOWER_ROLES,
+  TARGET_FILTERS,
+  TARGET_ORDERS,
+  DEFAULT_TARGETING,
   WAVES,
   getFactionTowers,
   getTowerLevel,
@@ -62,6 +65,26 @@ describe('shared data integrity', () => {
       });
       expect(getTowerLevel(id, 3)).toBe(tower.levels[2]);
       expect(() => getTowerLevel(id, 4)).toThrow();
+    }
+  });
+
+  it('targeting uses known orders and filters; slow towers skip already slowed creeps', () => {
+    expect(DEFAULT_TARGETING).toEqual({ order: 'first' });
+    for (const id of TOWER_TYPE_IDS) {
+      const tower = TOWERS[id];
+      for (const level of tower.levels) {
+        const targeting = level.targeting ?? DEFAULT_TARGETING;
+        expect(TARGET_ORDERS).toContain(targeting.order);
+        for (const filter of targeting.filters ?? []) {
+          expect(TARGET_FILTERS).toContain(filter);
+        }
+        if (targeting.sticky !== undefined)
+          expect(typeof targeting.sticky).toBe('boolean');
+        if (tower.role === 'slow') {
+          expect(targeting.order).toBe('first');
+          expect(targeting.filters).toContain('unslowed');
+        }
+      }
     }
   });
 

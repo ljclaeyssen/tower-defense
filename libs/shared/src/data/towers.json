@@ -71,7 +71,7 @@
           "behindRatio": 0.6
         },
         "projectile": {
-          "visual": "swirl-humans",
+          "visual": "tornado-humans",
           "speed": 0.4,
           "homing": true
         },
@@ -88,7 +88,7 @@
           "behindRatio": 0.7
         },
         "projectile": {
-          "visual": "swirl-humans",
+          "visual": "tornado-humans",
           "speed": 0.45,
           "homing": true
         },
@@ -105,7 +105,7 @@
           "behindRatio": 0.8
         },
         "projectile": {
-          "visual": "swirl-humans",
+          "visual": "tornado-humans",
           "speed": 0.5,
           "homing": true
         },
@@ -121,6 +121,7 @@
     "descKey": "towers.human-frostmage.desc",
     "levels": [
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 70,
         "damage": 6,
         "range": 4,
@@ -138,6 +139,7 @@
         "model": "human-frostmage-1"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 80,
         "damage": 10,
         "range": 4.5,
@@ -155,6 +157,7 @@
         "model": "human-frostmage-2"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 140,
         "damage": 16,
         "range": 5,
@@ -305,7 +308,7 @@
           "behindRatio": 0.6
         },
         "projectile": {
-          "visual": "swirl-elves",
+          "visual": "gust-elves",
           "speed": 0.4,
           "homing": true
         },
@@ -322,7 +325,7 @@
           "behindRatio": 0.7
         },
         "projectile": {
-          "visual": "swirl-elves",
+          "visual": "gust-elves",
           "speed": 0.45,
           "homing": true
         },
@@ -339,7 +342,7 @@
           "behindRatio": 0.8
         },
         "projectile": {
-          "visual": "swirl-elves",
+          "visual": "gust-elves",
           "speed": 0.5,
           "homing": true
         },
@@ -355,6 +358,7 @@
     "descKey": "towers.elf-moonshrine.desc",
     "levels": [
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 70,
         "damage": 5,
         "range": 4.5,
@@ -372,6 +376,7 @@
         "model": "elf-moonshrine-1"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 80,
         "damage": 9,
         "range": 5,
@@ -389,6 +394,7 @@
         "model": "elf-moonshrine-2"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 140,
         "damage": 14,
         "range": 5.5,
@@ -539,7 +545,7 @@
           "behindRatio": 0.6
         },
         "projectile": {
-          "visual": "swirl-orcs",
+          "visual": "dust-orcs",
           "speed": 0.4,
           "homing": true
         },
@@ -556,7 +562,7 @@
           "behindRatio": 0.7
         },
         "projectile": {
-          "visual": "swirl-orcs",
+          "visual": "dust-orcs",
           "speed": 0.45,
           "homing": true
         },
@@ -573,7 +579,7 @@
           "behindRatio": 0.8
         },
         "projectile": {
-          "visual": "swirl-orcs",
+          "visual": "dust-orcs",
           "speed": 0.5,
           "homing": true
         },
@@ -589,6 +595,7 @@
     "descKey": "towers.orc-icetroll.desc",
     "levels": [
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 70,
         "damage": 8,
         "range": 3.5,
@@ -606,6 +613,7 @@
         "model": "orc-icetroll-1"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 80,
         "damage": 13,
         "range": 4,
@@ -623,6 +631,7 @@
         "model": "orc-icetroll-2"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 140,
         "damage": 20,
         "range": 4.5,
@@ -773,7 +782,7 @@
           "behindRatio": 0.7
         },
         "projectile": {
-          "visual": "swirl-undead",
+          "visual": "wail-undead",
           "speed": 0.4,
           "homing": true
         },
@@ -790,7 +799,7 @@
           "behindRatio": 0.8
         },
         "projectile": {
-          "visual": "swirl-undead",
+          "visual": "wail-undead",
           "speed": 0.45,
           "homing": true
         },
@@ -807,7 +816,7 @@
           "behindRatio": 0.9
         },
         "projectile": {
-          "visual": "swirl-undead",
+          "visual": "wail-undead",
           "speed": 0.5,
           "homing": true
         },
@@ -823,6 +832,7 @@
     "descKey": "towers.undead-lich.desc",
     "levels": [
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 70,
         "damage": 6,
         "range": 4,
@@ -840,6 +850,7 @@
         "model": "undead-lich-1"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 80,
         "damage": 10,
         "range": 4.5,
@@ -857,6 +868,7 @@
         "model": "undead-lich-2"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 140,
         "damage": 16,
         "range": 5,
@@ -1057,6 +1069,7 @@
     "descKey": "towers.dwarf-cryosprayer.desc",
     "levels": [
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 70,
         "damage": 6,
         "range": 4.5,
@@ -1074,6 +1087,7 @@
         "model": "dwarf-cryosprayer-1"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 80,
         "damage": 10,
         "range": 5,
@@ -1091,6 +1105,7 @@
         "model": "dwarf-cryosprayer-2"
       },
       {
+        "targeting": { "order": "first", "filters": ["unslowed"] },
         "cost": 140,
         "damage": 16,
         "range": 5.5,

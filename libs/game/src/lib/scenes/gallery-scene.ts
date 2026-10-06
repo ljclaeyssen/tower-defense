@@ -6,7 +6,10 @@ import {
   getTowerDef,
 } from '@td/shared';
 import { getPixelRatio } from '../display.js';
-import { allProjectileVisualIds } from '../visuals/projectile-registry.js';
+import {
+  allProjectileVisualIds,
+  resolveProjectile,
+} from '../visuals/projectile-registry.js';
 import { CameraController, MAX_ZOOM } from './camera-controller.js';
 import {
   CREEP_BODY_KEY,
@@ -50,6 +53,11 @@ const ROW_H = 86;
  */
 export class GalleryScene extends Phaser.Scene {
   private cameraController: CameraController | null = null;
+  /** Projectile previews that spin in flight (tornado, dust), animated in `update`. */
+  private readonly spinners: {
+    image: Phaser.GameObjects.Image;
+    spin: number;
+  }[] = [];
 
   constructor() {
     super({ key: GALLERY_SCENE_KEY });
@@ -122,9 +130,11 @@ export class GalleryScene extends Phaser.Scene {
     allProjectileVisualIds().forEach((visual, i) => {
       const x = 30 + (i % perRow) * projectileStep;
       const rowY = y + Math.floor(i / perRow) * 44;
-      this.add
+      const image = this.add
         .image(x, rowY, ensureProjectileTexture(this, visual))
         .setScale(2 * D);
+      const { spin } = resolveProjectile(visual);
+      if (spin !== 0) this.spinners.push({ image, spin });
       this.label(x, rowY + 14, visual);
       maxX = Math.max(maxX, x + projectileStep / 2);
     });
@@ -160,7 +170,13 @@ export class GalleryScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
       this.cameraController?.destroy();
       this.cameraController = null;
+      this.spinners.length = 0;
     });
+  }
+
+  override update(time: number): void {
+    for (const { image, spin } of this.spinners)
+      image.setRotation((time / 1000) * spin);
   }
 
   private textResolution(): number {

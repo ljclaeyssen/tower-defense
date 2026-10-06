@@ -72,7 +72,7 @@ describe('projectile registry', () => {
     const ids = allProjectileVisualIds();
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain('arrow-humans');
-    expect(ids).toContain('swirl-elves');
+    expect(ids).toContain('gust-elves');
   });
 
   it('derives the shape from the key', () => {
@@ -95,6 +95,40 @@ describe('projectile registry', () => {
     }
     expect(MISSING_PROJECTILE.chain).toBe('arc');
     expect(allProjectileVisualIds()).toContain('bolt-dwarves');
+  });
+
+  it('gives every pierce tower of the data a themed, non-fallback visual', () => {
+    const expected: Record<string, [string, string]> = {
+      humans: ['tornado', 'arc'],
+      elves: ['gust', 'streak'],
+      orcs: ['dust', 'arc'],
+      undead: ['wail', 'ripple'],
+      dwarves: ['bolt', 'bolt'],
+    };
+    for (const type of TOWER_TYPE_IDS) {
+      const def = TOWERS[type];
+      if (def.role !== 'pierce') continue;
+      for (const level of def.levels) {
+        const d = resolveProjectile(level.projectile.visual);
+        expect(d).not.toBe(MISSING_PROJECTILE);
+        expect([d.shape, d.chain]).toEqual(expected[def.faction]);
+      }
+    }
+  });
+
+  it('derives spin, trail, impact and hit flash from the shape', () => {
+    expect(resolveProjectile('tornado-humans').spin).toBeGreaterThan(0);
+    expect(resolveProjectile('tornado-humans').trail).toBe('spiral');
+    expect(resolveProjectile('dust-orcs').trail).toBe('puff');
+    expect(resolveProjectile('dust-orcs').impact).toBe('ring');
+    expect(resolveProjectile('gust-elves').orient).toBe(true);
+    expect(resolveProjectile('wail-undead').hitFlash).not.toBe(0xffffff);
+    expect(resolveProjectile('arrow-humans').hitFlash).toBe(0xffffff);
+    expect(MISSING_PROJECTILE).toMatchObject({
+      shape: 'swirl',
+      chain: 'arc',
+      spin: 0,
+    });
   });
 
   it('tints by faction', () => {
