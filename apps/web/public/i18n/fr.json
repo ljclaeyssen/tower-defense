@@ -14,7 +14,7 @@
   "home": {
     "howToPlay": {
       "title": "Comment jouer",
-      "build": "Choisissez une tour (ou appuyez sur 1-9) puis cliquez sur l'herbe pour la construire. Les créatures suivent la route, sur laquelle on ne peut rien construire.",
+      "build": "Choisissez l'une des quatre tours de votre faction (ou appuyez sur 1-4) puis cliquez sur l'herbe pour la construire. Les créatures suivent la route, sur laquelle on ne peut rien construire.",
       "path": "Construisez dans les virages : une tour qui couvre deux tronçons de route tire deux fois plus souvent.",
       "upgrade": "Cliquez sur une tour pour l'améliorer ou la vendre. Les éliminations et le revenu rapportent de l'or.",
       "waves": "Appuyez sur N pour lancer la vague suivante plus tôt. Si vous perdez toutes vos vies, la partie est finie."
@@ -47,11 +47,95 @@
     "cancel": "Annuler",
     "close": "Fermer",
     "seed": "Graine",
-    "selectTowerHint": "Choisissez une tour à construire, puis cliquez sur la carte"
+    "selectTowerHint": "Choisissez une tour à construire, puis cliquez sur la carte",
+    "behind": "Touche {{cells}} cases derrière à {{percent}} %",
+    "slowStat": "Ralentit de {{percent}} % pendant {{seconds}} s",
+    "splash": "Zone de {{radius}} cases à {{percent}} %",
+    "faction": "Faction",
+    "role": "Rôle",
+    "damageStat": "{{damage}} dégâts",
+    "nextDamage": "Niveau suivant : {{damage}} dégâts"
   },
   "towers": {
-    "archer": {
-      "name": "Tour d'archers"
+    "human-archer": {
+      "name": "Tour d'archers",
+      "desc": "Tire des flèches sur une seule cible."
+    },
+    "human-stormcaller": {
+      "name": "Invocateur de tempête",
+      "desc": "Lance la foudre qui traverse la file de créatures."
+    },
+    "human-frostmage": {
+      "name": "Mage de givre",
+      "desc": "Glace une cible et la ralentit."
+    },
+    "human-cannon": {
+      "name": "Canon",
+      "desc": "Tire de lourds obus qui explosent à l'impact."
+    },
+    "elf-ranger": {
+      "name": "Tour des rôdeurs",
+      "desc": "Décoche de rapides flèches à longue distance."
+    },
+    "elf-windsinger": {
+      "name": "Chanteuse des vents",
+      "desc": "Chante une bourrasque qui perce plusieurs créatures."
+    },
+    "elf-moonshrine": {
+      "name": "Sanctuaire de lune givrée",
+      "desc": "Baigne une cible de givre lunaire et ralentit ses pas."
+    },
+    "elf-ballista": {
+      "name": "Baliste",
+      "desc": "Lance un énorme carreau qui explose en zone."
+    },
+    "orc-spearthrower": {
+      "name": "Lanceur de javelots",
+      "desc": "Jette de brutaux javelots sur une seule cible."
+    },
+    "orc-dusttotem": {
+      "name": "Totem de poussière",
+      "desc": "Fait tournoyer un nuage de poussière qui fend la file."
+    },
+    "orc-icetroll": {
+      "name": "Troll des glaces",
+      "desc": "Lance des rocs gelés qui ralentissent sa proie."
+    },
+    "orc-catapult": {
+      "name": "Catapulte",
+      "desc": "Catapulte d'énormes pierres qui écrasent les groupes."
+    },
+    "undead-skeletonarcher": {
+      "name": "Archer squelette",
+      "desc": "Tire des flèches à pointe d'os sur une seule cible."
+    },
+    "undead-banshee": {
+      "name": "Banshee",
+      "desc": "Pousse un cri spectral qui traverse la file."
+    },
+    "undead-lich": {
+      "name": "Liche",
+      "desc": "Lance une malédiction glaciale qui ralentit sa victime."
+    },
+    "undead-plaguehurler": {
+      "name": "Lanceur de peste",
+      "desc": "Projette de la chair pestiférée qui éclate en zone."
+    },
+    "dwarf-rifletower": {
+      "name": "Tour de fusiliers",
+      "desc": "Tire des balles de long fusil sur une seule cible."
+    },
+    "dwarf-teslacoil": {
+      "name": "Bobine tesla",
+      "desc": "Libère un arc électrique qui traverse toute la file."
+    },
+    "dwarf-cryosprayer": {
+      "name": "Pulvérisateur cryogénique",
+      "desc": "Projette un gaz surgelé qui ralentit sa cible."
+    },
+    "dwarf-mortar": {
+      "name": "Équipe de mortier",
+      "desc": "Lance des obus explosifs qui éclatent sur une large zone."
     }
   },
   "creeps": {
@@ -74,7 +158,8 @@
     "MaxLevel": "Cette tour est déjà au niveau maximum",
     "InvalidCount": "Quantité invalide",
     "NotAvailableInMode": "Indisponible dans ce mode de jeu",
-    "NoWaveToStart": "Il n'y a plus de vague à lancer"
+    "NoWaveToStart": "Il n'y a plus de vague à lancer",
+    "WrongFaction": "Cette tour appartient à une autre faction"
   },
   "gameover": {
     "title": "Partie terminée",
@@ -92,5 +177,39 @@
     "language": "Langue",
     "english": "Anglais",
     "french": "Français"
+  },
+  "factions": {
+    "page": {
+      "title": "Choisis ta faction",
+      "subtitle": "Choisis l'armée qui défendra la route.",
+      "play": "Jouer",
+      "towers": "Tours"
+    },
+    "humans": {
+      "name": "Humains",
+      "desc": "Des défenses équilibrées d'acier et de poudre."
+    },
+    "elves": {
+      "name": "Elfes",
+      "desc": "Des tours rapides et à longue portée, plus précises que puissantes."
+    },
+    "orcs": {
+      "name": "Orcs",
+      "desc": "Des tours brutales à tir lent, aux coups écrasants."
+    },
+    "undead": {
+      "name": "Morts-vivants",
+      "desc": "Des malédictions glaciales et une peste rampante."
+    },
+    "dwarves": {
+      "name": "Nains",
+      "desc": "Des ingénieurs de fusils, de bobines tesla et de bricolage gnomique : des défenses précises et ingénieuses."
+    }
+  },
+  "roles": {
+    "single": "Monocible",
+    "pierce": "Perçant",
+    "slow": "Ralentissement",
+    "burst": "Frappe lourde"
   }
 }

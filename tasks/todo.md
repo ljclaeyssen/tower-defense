@@ -16,6 +16,16 @@
 - [x] Playtest feedback round 1: HiDPI/supersampled rendering, drawn serpentine road instead of open-field mazing
 - [ ] Owner playtest and feedback (round 2)
 
+## Phase 1.5 — factions and tower roles (data-driven)
+
+- [x] Shared contract: TowerRole/AttackDef/ProjectileDef per level, FactionDef, PlayerConfig.faction, slow state on creeps, projectile kind/visual, CreepSlowed event, WrongFaction
+- [x] Data: factions.json + towers.json (20 towers x 3 levels, 5 factions incl. dwarves) + i18n en/fr
+- [x] Sim: generic firing from level defs, impact resolution per kind (single/pierce/slow/burst), slow movement, WrongFaction, scripted builds and balance per faction, determinism with mixed towers
+- [x] Game: model and projectile registries keyed by data, faction palettes, slow tint, secondary hit numbers, HudSnapshot.buildOptions, gallery by faction
+- [x] Web: /factions selection page, faction in play route, build panel + hotkeys from buildOptions, tower panel role stats
+- [x] Integration, browser test, commit, redeploy, CLAUDE.md 'how to add a tower / faction'
+- [ ] Owner playtest of the factions
+
 ## Phase 2 — art pipeline (generators, atlas, gallery, effects)
 
 ## Phase 3 — PvP (Colyseus rooms, lobby, RemoteSession, send creeps)

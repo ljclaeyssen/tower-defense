@@ -6,12 +6,14 @@ import type {
   CellKind,
   Command,
   CommandResult,
+  CreepState,
   GameConfig,
   GameEvent,
   GameState,
   GridPos,
   LaneState,
   PlayerState,
+  ProjectileState,
   TowerState,
 } from '@td/shared';
 import type { Game } from '@td/sim';
@@ -76,6 +78,7 @@ export function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
     id: 0,
     team: 'blue',
+    faction: 'humans',
     gold: 150,
     lives: 20,
     income: 10,
@@ -88,12 +91,48 @@ export function makeTower(overrides: Partial<TowerState> = {}): TowerState {
   return {
     id: 1,
     playerId: 0,
-    type: 'archer',
+    type: 'human-archer',
     level: 1,
     pos: { x: 2, y: 2 },
     cooldown: 0,
     invested: 50,
     targetId: null,
+    ...overrides,
+  };
+}
+
+export function makeCreep(overrides: Partial<CreepState> = {}): CreepState {
+  return {
+    id: 100,
+    playerId: 0,
+    type: 'beetle',
+    pos: { x: 0.5, y: 2.5 },
+    hp: 90,
+    maxHp: 90,
+    speed: 0.05,
+    slowFactor: 1,
+    slowTicks: 0,
+    distanceToExit: 20,
+    dir: { x: 1, y: 0 },
+    waveIndex: 0,
+    bounty: 5,
+    ...overrides,
+  };
+}
+
+export function makeProjectile(
+  overrides: Partial<ProjectileState> = {},
+): ProjectileState {
+  return {
+    id: 200,
+    playerId: 0,
+    sourceTowerId: 1,
+    targetId: 100,
+    pos: { x: 3, y: 3 },
+    speed: 0.6,
+    damage: 14,
+    kind: 'single',
+    visual: 'arrow-humans',
     ...overrides,
   };
 }

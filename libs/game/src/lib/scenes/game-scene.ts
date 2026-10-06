@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { TICK_MS, TOWER_FOOTPRINT, getTowerDef } from '@td/shared';
+import { TICK_MS, TOWERS, TOWER_FOOTPRINT, getTowerDef } from '@td/shared';
 import type {
   CreepState,
   EntityId,
@@ -48,12 +48,14 @@ import {
   CREEP_SHADOW_KEY,
   GROUND_FLASH_KEY,
   PARTICLE_KEY,
-  PROJECTILE_KEY,
   TEXTURE_DISPLAY_SCALE,
+  ensureProjectileTexture,
   ensureTextures,
+  ensureTowerTexture,
   groundTextureKey,
-  towerTexture,
 } from './textures.js';
+import { modelIdOf } from '../visuals/model-registry.js';
+import { resolveProjectile } from '../visuals/projectile-registry.js';
 
 export const GAME_SCENE_KEY = 'td-game';
 
@@ -77,6 +79,18 @@ const MAX_PENDING_EVENTS = 500;
 const HP_BAR_WIDTH = 14;
 /** Extra world space kept above the map for tower bodies when fitting the camera. */
 const FIT_TOP_MARGIN = 48;
+
+/** Steady multiply tint of slowed creeps. */
+const SLOW_TINT = 0x9fd8ff;
+/** Fill flash colours: hit (white) and slow applied (blue). */
+const HIT_FLASH = 0xffffff;
+const SLOW_FLASH = 0x6fb8ff;
+/** Secondary (pierce/burst splash) damage numbers are smaller and dimmer. */
+const SECONDARY_TEXT_SCALE = 0.75;
+const SECONDARY_TEXT_ALPHA = 0.7;
+const BURST_RING_COLOR = 0xffd27a;
+/** Safety cap of the burst projectile bookkeeping (entries normally live a few ticks). */
+const MAX_TRACKED_BURSTS = 256;
 
 const GHOST_OK = 0x22c55e;
 const GHOST_BAD = 0xef4444;
@@ -111,7 +125,10 @@ const EMPTY: readonly never[] = [];
 
 interface TowerView {
   readonly sprite: Phaser.GameObjects.Image;
+  type: TowerTypeId;
   level: number;
+  /** Model key currently displayed (re-baked/re-textured when the level changes). */
+  modelId: string;
   team: Team;
   depth: number;
   /** Screen bounds of the sprite, for hit testing and occlusion. */
@@ -124,8 +141,11 @@ interface CreepView {
   readonly body: Phaser.GameObjects.Image;
   readonly hpFill: Phaser.GameObjects.Rectangle;
   hpRatio: number;
-  /** Scene time at which the hit flash ends (0 = no flash). */
+  /** Scene time at which the current fill flash ends (0 = no flash). */
   flashUntil: number;
+  /** Tint currently applied to the body. */
+  tint: 'none' | 'slow' | 'flash';
+  slowed: boolean;
   depth: number;
   readonly rect: Rect;
   seen: number;
@@ -133,6 +153,9 @@ interface CreepView {
 
 interface ProjectileView {
   readonly image: Phaser.GameObjects.Image;
+  visual: string;
+  /** Elongated visuals (arrows) are rotated along their flight direction. */
+  rotates: boolean;
   seen: number;
 }
 
@@ -181,6 +204,9 @@ export class GameScene extends Phaser.Scene {
   private flowNext: readonly number[] | null = null;
 
   private readonly damageTextPool: Phaser.GameObjects.Text[] = [];
+  private readonly ringPool: Phaser.GameObjects.Graphics[] = [];
+  /** Burst projectiles in flight: projectile id -> source tower id (for the impact ring radius). */
+  private readonly burstSources = new Map<EntityId, EntityId>();
 
   private pointerX = 0;
   private pointerY = 0;
@@ -190,6 +216,7 @@ export class GameScene extends Phaser.Scene {
   private readonly tmpGrid = { x: 0, y: 0 };
   private readonly tmpScreen = { x: 0, y: 0 };
   private readonly tmpWorld = { x: 0, y: 0 };
+  private readonly tmpPrev = { x: 0, y: 0 };
 
   constructor() {
     super({ key: GAME_SCENE_KEY });
@@ -353,7 +380,9 @@ export class GameScene extends Phaser.Scene {
         const sprite = this.add.image(anchor.x, anchor.y, '__DEFAULT');
         view = {
           sprite,
+          type: tower.type,
           level: 0,
+          modelId: '',
           team,
           depth: anchor.y,
           bounds: { left: 0, top: 0, right: 0, bottom: 0 },
@@ -362,10 +391,13 @@ export class GameScene extends Phaser.Scene {
         sprite.setScale(D).setDepth(anchor.y);
         this.towers.set(tower.id, view);
       }
-      if (view.level !== tower.level || view.team !== team) {
-        view.level = tower.level;
+      view.type = tower.type;
+      view.level = tower.level;
+      const modelId = modelIdOf(tower.type, tower.level);
+      if (view.modelId !== modelId || view.team !== team) {
+        view.modelId = modelId;
         view.team = team;
-        const info = towerTexture(tower.type, tower.level, team);
+        const info = ensureTowerTexture(this, modelId, team);
         view.sprite
           .setTexture(info.key)
           .setOrigin(info.displayOriginX, info.displayOriginY);
@@ -405,6 +437,8 @@ export class GameScene extends Phaser.Scene {
       hpFill,
       hpRatio: 1,
       flashUntil: 0,
+      tint: 'none',
+      slowed: false,
       depth: 0,
       rect: { left: 0, top: 0, right: 0, bottom: 0 },
       seen: 0,
@@ -443,10 +477,8 @@ export class GameScene extends Phaser.Scene {
         view.hpFill.setScale(ratio, 1);
         view.hpFill.setFillStyle(hpColor(ratio));
       }
-      if (view.flashUntil !== 0 && time >= view.flashUntil) {
-        view.flashUntil = 0;
-        view.body.clearTint(); // also resets the tint mode to MULTIPLY
-      }
+      view.slowed = creep.slowFactor < 1;
+      this.refreshCreepTint(view, time);
       view.seen = frame;
     }
     for (const [id, view] of this.creeps) {
@@ -455,6 +487,30 @@ export class GameScene extends Phaser.Scene {
       view.container.destroy();
       this.creeps.delete(id);
     }
+  }
+
+  /** Applies the steady tint (slowed or none) once a flash is over or when the slow state changes. */
+  private refreshCreepTint(view: CreepView, time: number): void {
+    if (view.tint === 'flash') {
+      if (time < view.flashUntil) return;
+      view.flashUntil = 0;
+    } else if (view.tint === (view.slowed ? 'slow' : 'none')) {
+      return;
+    }
+    if (view.slowed) {
+      view.body.setTint(SLOW_TINT).setTintMode(Phaser.TintModes.MULTIPLY);
+      view.tint = 'slow';
+    } else {
+      view.body.clearTint(); // also resets the tint mode to MULTIPLY
+      view.tint = 'none';
+    }
+  }
+
+  /** Fill flash of `color` on a creep body for two ticks. */
+  private flashCreep(view: CreepView, color: number, time: number): void {
+    view.body.setTint(color).setTintMode(Phaser.TintModes.FILL);
+    view.tint = 'flash';
+    view.flashUntil = time + 2 * TICK_MS;
   }
 
   private syncProjectiles(
@@ -468,25 +524,40 @@ export class GameScene extends Phaser.Scene {
       let view = this.projectiles.get(projectile.id);
       if (!view) {
         view = {
-          image: this.add.image(0, 0, PROJECTILE_KEY).setScale(D),
+          image: this.add.image(0, 0, '__DEFAULT').setScale(D),
+          visual: '',
+          rotates: false,
           seen: 0,
         };
         this.projectiles.set(projectile.id, view);
       }
-      const g = interpolatePos(
-        this.prevProjectiles.get(projectile.id)?.pos,
-        projectile.pos,
-        alpha,
-        this.tmpGrid,
-      );
+      if (view.visual !== projectile.visual) {
+        view.visual = projectile.visual;
+        view.rotates = resolveProjectile(projectile.visual).shape === 'arrow';
+        view.image.setTexture(ensureProjectileTexture(this, projectile.visual));
+      }
+      const prevPos = this.prevProjectiles.get(projectile.id)?.pos;
+      const g = interpolatePos(prevPos, projectile.pos, alpha, this.tmpGrid);
       const p = gridToScreen(g.x, g.y, this.tmpScreen);
       view.image.setPosition(p.x, p.y - PROJECTILE_HEIGHT).setDepth(p.y + 1);
+      if (view.rotates && prevPos) {
+        const from = gridToScreen(prevPos.x, prevPos.y, this.tmpPrev);
+        const to = gridToScreen(
+          projectile.pos.x,
+          projectile.pos.y,
+          this.tmpWorld,
+        );
+        if (from.x !== to.x || from.y !== to.y) {
+          view.image.setRotation(Math.atan2(to.y - from.y, to.x - from.x));
+        }
+      }
       view.seen = frame;
     }
     for (const [id, view] of this.projectiles) {
       if (view.seen === frame) continue;
       view.image.destroy();
       this.projectiles.delete(id);
+      this.burstSources.delete(id);
     }
   }
 
@@ -521,13 +592,32 @@ export class GameScene extends Phaser.Scene {
     for (const event of events) {
       switch (event.type) {
         case 'CreepHit':
-          this.onCreepHit(event.creepId, event.damage, time);
+          this.onCreepHit(
+            event.creepId,
+            event.projectileId,
+            event.damage,
+            event.primary,
+            time,
+          );
           break;
+        case 'CreepSlowed': {
+          const view = this.creeps.get(event.creepId);
+          if (view) this.flashCreep(view, SLOW_FLASH, time);
+          break;
+        }
         case 'CreepKilled':
           this.onCreepKilled(event.creepId);
           break;
         case 'ProjectileFired':
           this.onProjectileFired(event.projectile.sourceTowerId);
+          if (event.projectile.kind === 'burst') {
+            if (this.burstSources.size >= MAX_TRACKED_BURSTS)
+              this.burstSources.clear();
+            this.burstSources.set(
+              event.projectile.id,
+              event.projectile.sourceTowerId,
+            );
+          }
           break;
         case 'LifeLost':
           if (event.playerId === this.playerId) this.flashExit();
@@ -538,15 +628,75 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private onCreepHit(creepId: EntityId, damage: number, time: number): void {
+  private onCreepHit(
+    creepId: EntityId,
+    projectileId: EntityId,
+    damage: number,
+    primary: boolean,
+    time: number,
+  ): void {
     const view = this.creeps.get(creepId);
+    if (primary) {
+      const towerId = this.burstSources.get(projectileId);
+      if (towerId !== undefined) {
+        this.burstSources.delete(projectileId);
+        if (view)
+          this.spawnBurstRing(
+            view.container.x,
+            view.container.y,
+            this.burstRadiusOf(towerId),
+          );
+      }
+    }
     if (!view) return;
-    view.body.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
-    view.flashUntil = time + 2 * TICK_MS;
-    this.spawnDamageText(view.container.x, view.container.y - 14, damage);
+    this.flashCreep(view, HIT_FLASH, time);
+    this.spawnDamageText(
+      view.container.x,
+      view.container.y - 14,
+      damage,
+      primary,
+    );
   }
 
-  private spawnDamageText(x: number, y: number, damage: number): void {
+  /** Splash radius (cells) of the source tower's current level; 1 when unknown. */
+  private burstRadiusOf(towerId: EntityId): number {
+    const tower = this.towers.get(towerId);
+    const attack = tower
+      ? TOWERS[tower.type].levels[tower.level - 1]?.attack
+      : undefined;
+    return attack?.kind === 'burst' ? attack.splashRadius : 1;
+  }
+
+  /** Short expanding iso ring on the ground (pooled Graphics). */
+  private spawnBurstRing(x: number, y: number, radiusCells: number): void {
+    const ring =
+      this.ringPool.pop()?.setActive(true).setVisible(true) ??
+      this.add.graphics().setDepth(DEPTH_FX - 2);
+    const r = isoRadiusPx(radiusCells);
+    ring.clear();
+    ring.fillStyle(BURST_RING_COLOR, 0.15).fillCircle(0, 0, r);
+    ring.lineStyle(2, BURST_RING_COLOR, 0.9).strokeCircle(0, 0, r);
+    ring.setPosition(x, y).setScale(0.3, 0.15).setAlpha(1);
+    this.tweens.add({
+      targets: ring,
+      scaleX: 1,
+      scaleY: 0.5,
+      alpha: 0,
+      duration: 320,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        ring.setActive(false).setVisible(false);
+        this.ringPool.push(ring);
+      },
+    });
+  }
+
+  private spawnDamageText(
+    x: number,
+    y: number,
+    damage: number,
+    primary: boolean,
+  ): void {
     const text =
       this.damageTextPool.pop()?.setActive(true).setVisible(true) ??
       this.add
@@ -559,7 +709,8 @@ export class GameScene extends Phaser.Scene {
     text
       .setText(String(Math.round(damage)))
       .setPosition(x, y)
-      .setAlpha(1);
+      .setScale(primary ? 1 : SECONDARY_TEXT_SCALE)
+      .setAlpha(primary ? 1 : SECONDARY_TEXT_ALPHA);
     this.tweens.add({
       targets: text,
       y: y - 24,
@@ -905,6 +1056,8 @@ export class GameScene extends Phaser.Scene {
     this.prevProjectiles.clear();
     this.pendingEvents = [];
     this.damageTextPool.length = 0;
+    this.ringPool.length = 0;
+    this.burstSources.clear();
     this.flowTexts = [];
     this.flowGraphics = null;
     this.exitFlash = null;

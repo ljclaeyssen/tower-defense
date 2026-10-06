@@ -81,8 +81,12 @@ export class GameOverDialog {
    */
   protected async playAgain(): Promise<void> {
     const seed = Date.now() >>> 0;
+    // Same faction again (read before leaving: the facade is reset when the page is destroyed).
+    const faction = this.facade.faction();
     await this.router.navigateByUrl('/', { skipLocationChange: true });
-    await this.router.navigate(['/play', 'pve'], { queryParams: { seed } });
+    await this.router.navigate(['/play', 'pve'], {
+      queryParams: faction === null ? { seed } : { faction, seed },
+    });
   }
 
   protected backToMenu(): void {

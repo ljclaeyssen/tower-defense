@@ -166,7 +166,7 @@ describe('waves', () => {
   });
 
   it('runs exactly the 5 waves over a full game', () => {
-    const { events } = runScriptedPve(true);
+    const { events } = runScriptedPve('humans');
     const started = events.filter((e) => e.type === 'WaveStarted');
     expect(started.map((e) => e.type === 'WaveStarted' && e.waveIndex)).toEqual(
       [0, 1, 2, 3, 4],

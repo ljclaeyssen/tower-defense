@@ -9,6 +9,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { getTowerDef, secondsFromTicks } from '@td/shared';
+import { attackStat } from '../../core/tower-stats';
 import { GameFacade } from '../game.facade';
 
 /** Details and actions for the selected tower. Rendered only while a tower is selected. */
@@ -19,7 +20,10 @@ import { GameFacade } from '../game.facade';
     @if (view(); as v) {
       <div class="td-panel panel">
         <header class="head">
-          <strong>{{ v.nameKey | translate }}</strong>
+          <span class="title">
+            <small class="role">{{ v.roleKey | translate }}</small>
+            <strong>{{ v.nameKey | translate }}</strong>
+          </span>
           <p-tag
             severity="warn"
             [value]="'hud.level' | translate: { level: v.level }"
@@ -42,6 +46,9 @@ import { GameFacade } from '../game.facade';
           <dt>{{ 'hud.cooldown' | translate }}</dt>
           <dd>{{ v.cooldownSeconds | number: '1.0-2' }} s</dd>
         </dl>
+        @if (v.roleStat; as stat) {
+          <p class="role-stat">{{ stat.key | translate: stat.params }}</p>
+        }
         <div class="actions">
           @let upgradeCost = facade.upgradeCost();
           <p-button
@@ -69,6 +76,11 @@ import { GameFacade } from '../game.facade';
             (onClick)="facade.sell()"
           />
         </div>
+        @if (v.nextDamage !== null) {
+          <small class="next">{{
+            'hud.nextDamage' | translate: { damage: v.nextDamage }
+          }}</small>
+        }
       </div>
     }
   `,
@@ -85,8 +97,16 @@ import { GameFacade } from '../game.facade';
       align-items: center;
       gap: 0.5rem;
     }
-    .head strong {
+    .title {
+      display: flex;
+      flex-direction: column;
       flex: 1;
+    }
+    .role {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.7;
     }
     .stats {
       display: grid;
@@ -102,9 +122,17 @@ import { GameFacade } from '../game.facade';
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
+    .role-stat {
+      margin: 0;
+      color: var(--td-gold);
+      font-size: 0.85rem;
+    }
     .actions {
       display: flex;
       gap: 0.5rem;
+    }
+    .next {
+      opacity: 0.7;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -114,20 +142,20 @@ export class TowerPanel {
 
   protected readonly view = computed(() => {
     const tower = this.facade.selectedTower();
-    if (tower === null) {
+    const level = this.facade.selectedLevel();
+    if (tower === null || level === null) {
       return null;
     }
     const def = getTowerDef(tower.type);
-    const level = def.levels[tower.level - 1];
-    if (level === undefined) {
-      return null;
-    }
     return {
       nameKey: def.nameKey,
+      roleKey: `roles.${def.role}`,
       level: tower.level,
       damage: level.damage,
       range: level.range,
       cooldownSeconds: secondsFromTicks(level.cooldownTicks),
+      roleStat: attackStat(level.attack),
+      nextDamage: this.facade.nextLevel()?.damage ?? null,
     };
   });
 }

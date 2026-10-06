@@ -11,7 +11,6 @@ import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ToastModule } from 'primeng/toast';
-import { TOWER_TYPE_IDS } from '@td/shared';
 import { GameFacade } from '../../game/game.facade';
 import { GameHostComponent } from '../../game/game-host.component';
 import { BuildPanel } from '../../game/hud/build-panel.component';
@@ -82,7 +81,7 @@ export class PlayPage {
       return true;
     }
     if (/^[1-9]$/.test(key)) {
-      const type = TOWER_TYPE_IDS[Number(key) - 1];
+      const type = this.facade.buildOptions()[Number(key) - 1]?.type;
       if (type !== undefined) {
         this.facade.toggleBuild(type);
         return true;

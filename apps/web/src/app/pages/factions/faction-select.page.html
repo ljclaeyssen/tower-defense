@@ -1,0 +1,57 @@
+<main class="page">
+  <header class="head">
+    <p-button
+      icon="pi pi-arrow-left"
+      [text]="true"
+      severity="secondary"
+      [ariaLabel]="'nav.back' | translate"
+      routerLink="/"
+    />
+    <div>
+      <h1>{{ 'factions.page.title' | translate }}</h1>
+      <p class="subtitle">{{ 'factions.page.subtitle' | translate }}</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    @for (faction of factions; track faction.id) { @let selected =
+    preference.last() === faction.id;
+    <p-card
+      class="faction-card"
+      [class.selected]="selected"
+      [style.--td-accent]="faction.color"
+      [attr.data-faction]="faction.id"
+    >
+      <ng-template #title>
+        <span class="name">{{ faction.nameKey | translate }}</span>
+      </ng-template>
+      <p class="desc">{{ faction.descKey | translate }}</p>
+      <h2 class="towers-title">{{ 'factions.page.towers' | translate }}</h2>
+      <ul class="towers">
+        @for (tower of faction.towers; track tower.type) {
+        <li [title]="tower.descKey | translate">
+          <span class="role">{{ tower.roleKey | translate }}</span>
+          <span class="tower-name">{{ tower.nameKey | translate }}</span>
+          <span class="cost">
+            <i class="pi pi-circle-fill" aria-hidden="true"></i>{{ tower.cost }}
+          </span>
+          <span class="stat"
+            >{{ tower.stat.key | translate: tower.stat.params }}</span
+          >
+        </li>
+        }
+      </ul>
+      <ng-template #footer>
+        <p-button
+          class="play"
+          icon="pi pi-play"
+          [fluid]="true"
+          [outlined]="!selected"
+          [label]="'factions.page.play' | translate"
+          (onClick)="play(faction.id)"
+        />
+      </ng-template>
+    </p-card>
+    }
+  </div>
+</main>

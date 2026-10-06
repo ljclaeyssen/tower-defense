@@ -1,26 +1,50 @@
-import type { Command, GameEvent, PlayerId } from '@td/shared';
+import type { Command, FactionId, GameEvent, PlayerId } from '@td/shared';
 import type { Game } from './api.js';
 import { createGame } from './game.js';
 import { createHasher } from './hash.js';
 import { createRng } from './prng.js';
 import { pveConfig, stepN } from './testing.js';
 
-/** Scripted commands keyed by the tick before which they are applied. */
+/** Scripted commands keyed by the tick before which they are applied: one human tower of each role. */
 const SCRIPT: ReadonlyArray<readonly [number, Command]> = [
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 6, y: 4 } }],
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 12, y: 9 } }],
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 18, y: 4 } }],
-  [0, { type: 'PlaceTower', towerType: 'archer', pos: { x: 14, y: 6 } }], // NotEnoughGold
+  [0, { type: 'PlaceTower', towerType: 'human-archer', pos: { x: 6, y: 10 } }],
+  [
+    0,
+    { type: 'PlaceTower', towerType: 'human-frostmage', pos: { x: 6, y: 7 } },
+  ],
+  [
+    0,
+    {
+      type: 'PlaceTower',
+      towerType: 'human-stormcaller',
+      pos: { x: 12, y: 3 },
+    },
+  ], // NotEnoughGold
   [250, { type: 'StartWave' }],
-  [700, { type: 'UpgradeTower', towerId: 1 }], // NotEnoughGold
-  [1000, { type: 'UpgradeTower', towerId: 2 }],
-  [1200, { type: 'SellTower', towerId: 3 }],
-  [1205, { type: 'PlaceTower', towerType: 'archer', pos: { x: 17, y: 8 } }],
-  [1400, { type: 'UpgradeTower', towerId: 3 }], // TowerNotFound (sold)
-  [1500, { type: 'PlaceTower', towerType: 'archer', pos: { x: 1, y: 10 } }],
-  [1600, { type: 'UpgradeTower', towerId: 1 }],
-  [1700, { type: 'SellTower', towerId: 2 }],
-  [1750, { type: 'PlaceTower', towerType: 'archer', pos: { x: 8, y: 9 } }],
+  [
+    650,
+    {
+      type: 'PlaceTower',
+      towerType: 'human-stormcaller',
+      pos: { x: 12, y: 3 },
+    },
+  ],
+  [
+    1000,
+    { type: 'PlaceTower', towerType: 'human-cannon', pos: { x: 12, y: 6 } },
+  ], // NotEnoughGold
+  [1100, { type: 'UpgradeTower', towerId: 1 }],
+  [1200, { type: 'SellTower', towerId: 2 }],
+  [
+    1205,
+    { type: 'PlaceTower', towerType: 'human-frostmage', pos: { x: 17, y: 8 } },
+  ],
+  [1400, { type: 'UpgradeTower', towerId: 1 }], // NotEnoughGold
+  [1600, { type: 'UpgradeTower', towerId: 2 }], // TowerNotFound (sold)
+  [
+    1750,
+    { type: 'PlaceTower', towerType: 'human-cannon', pos: { x: 1, y: 10 } },
+  ],
 ];
 
 function runScript(seed: number): {
@@ -58,10 +82,21 @@ describe('determinism', () => {
       'TowerSold',
       'CreepKilled',
       'CommandRejected',
+      'CreepSlowed',
       'WaveStarted',
     ] as const) {
       expect(types.has(t)).toBe(true);
     }
+    // Every attack kind fired, and pierce/burst produced secondary hits.
+    const kinds = new Set(
+      a.events.flatMap((e) =>
+        e.type === 'ProjectileFired' ? [e.projectile.kind] : [],
+      ),
+    );
+    expect([...kinds].sort()).toEqual(['burst', 'pierce', 'single', 'slow']);
+    expect(a.events.some((e) => e.type === 'CreepHit' && !e.primary)).toBe(
+      true,
+    );
   });
 
   it('a different seed gives a different hash (rng state is hashed)', () => {
@@ -110,12 +145,12 @@ describe('hash and snapshots', () => {
     const game = createGame(pveConfig(), 7);
     const s = game.getState();
     game.apply(
-      { type: 'PlaceTower', towerType: 'archer', pos: { x: 23, y: 0 } },
+      { type: 'PlaceTower', towerType: 'human-archer', pos: { x: 23, y: 0 } },
       0,
     );
     expect(game.getState()).toBe(s);
     game.apply(
-      { type: 'PlaceTower', towerType: 'archer', pos: { x: 4, y: 0 } },
+      { type: 'PlaceTower', towerType: 'human-archer', pos: { x: 4, y: 0 } },
       0,
     );
     expect(game.getState()).not.toBe(s);
@@ -123,13 +158,35 @@ describe('hash and snapshots', () => {
     expect(s.lanes[0]?.towers).toHaveLength(0);
   });
 
-  it('createGame rejects player ids that differ from their index', () => {
+  it('createGame rejects player ids that differ from their index and unknown factions', () => {
     expect(() =>
       createGame(
-        { mode: 'pve', players: [{ id: 1, team: 'blue' }], mapId: 'basic' },
+        {
+          mode: 'pve',
+          players: [{ id: 1, team: 'blue', faction: 'humans' }],
+          mapId: 'basic',
+        },
         1,
       ),
     ).toThrow();
+    expect(() =>
+      createGame(
+        {
+          mode: 'pve',
+          players: [{ id: 0, team: 'blue', faction: 'goblins' as FactionId }],
+          mapId: 'basic',
+        },
+        1,
+      ),
+    ).toThrow();
+  });
+
+  it('players keep their faction in the snapshot and the faction is hashed', () => {
+    const humans = createGame(pveConfig(undefined, 'humans'), 1);
+    const orcs = createGame(pveConfig(undefined, 'orcs'), 1);
+    expect(humans.getState().players[0]?.faction).toBe('humans');
+    expect(orcs.getState().players[0]?.faction).toBe('orcs');
+    expect(humans.hash()).not.toBe(orcs.hash());
   });
 });
 

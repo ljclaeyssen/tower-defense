@@ -1,4 +1,5 @@
 export type {
+  BuildOption,
   GameSession,
   GameBridge,
   HudSnapshot,

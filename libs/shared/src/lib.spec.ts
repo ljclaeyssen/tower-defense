@@ -1,11 +1,17 @@
 import {
   CREEPS,
+  TOWER_TYPE_IDS,
   ECONOMY,
+  FACTIONS,
+  FACTION_IDS,
   MAPS,
   TOWERS,
+  TOWER_ROLES,
   WAVES,
+  getFactionTowers,
+  getTowerLevel,
   isCreepTypeId,
-  isTowerTypeId,
+  isFactionId,
   type MapDef,
 } from './index.js';
 
@@ -18,17 +24,65 @@ describe('shared data integrity', () => {
     }
   });
 
-  it('towers have 3 increasing levels with positive stats', () => {
-    for (const tower of Object.values(TOWERS)) {
-      expect(isTowerTypeId(tower.id)).toBe(true);
+  it('towers have 3 levels with positive stats, a matching attack kind and visual keys', () => {
+    for (const id of TOWER_TYPE_IDS) {
+      const tower = TOWERS[id];
+      expect(tower.id).toBe(id);
+      expect(isFactionId(tower.faction)).toBe(true);
+      expect(TOWER_ROLES).toContain(tower.role);
+      expect(tower.nameKey).toBe(`towers.${tower.id}.name`);
+      expect(tower.descKey).toBe(`towers.${tower.id}.desc`);
       expect(tower.levels).toHaveLength(3);
-      for (const level of tower.levels) {
+      tower.levels.forEach((level, i) => {
         expect(level.cost).toBeGreaterThan(0);
         expect(level.damage).toBeGreaterThan(0);
         expect(level.range).toBeGreaterThan(0);
         expect(level.cooldownTicks).toBeGreaterThan(0);
-        expect(level.projectileSpeed).toBeGreaterThan(0);
-      }
+        expect(level.attack.kind).toBe(tower.role);
+        expect(level.projectile.speed).toBeGreaterThan(0);
+        expect(level.projectile.visual.length).toBeGreaterThan(0);
+        expect(level.model).toBe(`${tower.id}-${i + 1}`);
+        switch (level.attack.kind) {
+          case 'pierce':
+            expect(level.attack.behindCells).toBeGreaterThan(0);
+            expect(level.attack.behindRatio).toBeGreaterThan(0);
+            break;
+          case 'slow':
+            expect(level.attack.factor).toBeGreaterThan(0);
+            expect(level.attack.factor).toBeLessThan(1);
+            expect(level.attack.durationTicks).toBeGreaterThan(0);
+            break;
+          case 'burst':
+            expect(level.attack.splashRadius).toBeGreaterThan(0);
+            expect(level.attack.splashRatio).toBeGreaterThan(0);
+            break;
+          case 'single':
+            break;
+        }
+      });
+      expect(getTowerLevel(id, 3)).toBe(tower.levels[2]);
+      expect(() => getTowerLevel(id, 4)).toThrow();
+    }
+  });
+
+  it('every faction has exactly one tower per role, in role order', () => {
+    expect(FACTION_IDS.length).toBeGreaterThan(0);
+    for (const factionId of FACTION_IDS) {
+      const faction = FACTIONS[factionId];
+      expect(faction.id).toBe(factionId);
+      expect(faction.color).toMatch(/^#[0-9a-f]{6}$/i);
+      const towers = getFactionTowers(factionId);
+      expect(towers).toHaveLength(TOWER_ROLES.length);
+      expect(towers).toEqual(faction.towers);
+      towers.forEach((id, i) => {
+        expect(TOWERS[id].faction).toBe(factionId);
+        expect(TOWERS[id].role).toBe(TOWER_ROLES[i]);
+      });
+    }
+    // Every tower belongs to the faction that lists it.
+    for (const tower of Object.values(TOWERS)) {
+      if (!isFactionId(tower.faction)) throw new Error(tower.faction);
+      expect(FACTIONS[tower.faction].towers).toContain(tower.id);
     }
   });
 

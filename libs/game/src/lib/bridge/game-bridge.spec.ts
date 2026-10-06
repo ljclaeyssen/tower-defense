@@ -1,4 +1,9 @@
-import { ECONOMY, getTowerDef } from '@td/shared';
+import {
+  ECONOMY,
+  TOWER_ROLES,
+  getFactionTowers,
+  getTowerDef,
+} from '@td/shared';
 import type { GameEvent } from '@td/shared';
 import type { HudSnapshot } from '../api.js';
 import {
@@ -8,10 +13,10 @@ import {
   makeState,
   makeTower,
 } from '../testing/fake-game.js';
-import { LocalGameBridge, deriveHud } from './game-bridge.js';
+import { LocalGameBridge, buildOptionsFor, deriveHud } from './game-bridge.js';
 
 describe('deriveHud', () => {
-  const archer = getTowerDef('archer');
+  const archer = getTowerDef('human-archer');
 
   it('reads gold, lives, income, wave, phase and result of the player', () => {
     const state = makeState({
@@ -21,7 +26,7 @@ describe('deriveHud', () => {
       players: [makePlayer({ id: 0, gold: 321, lives: 7, income: 15 })],
       wave: { index: 2, total: 10, nextWaveTick: null, remainingToSpawn: 4 },
     });
-    const hud = deriveHud(state, 0, 'archer', null);
+    const hud = deriveHud(state, 0, 'human-archer', null);
     expect(hud).toEqual<HudSnapshot>({
       tick: 12,
       phase: 'ended',
@@ -30,10 +35,14 @@ describe('deriveHud', () => {
       lives: 7,
       income: 15,
       wave: state.wave,
-      buildMode: 'archer',
+      faction: 'humans',
+      buildOptions: buildOptionsFor('humans'),
+      buildMode: 'human-archer',
       selectedTower: null,
       upgradeCost: null,
       sellRefund: null,
+      selectedLevel: null,
+      nextLevel: null,
     });
   });
 
@@ -61,6 +70,8 @@ describe('deriveHud', () => {
     expect(hud.selectedTower).toBe(tower);
     expect(hud.upgradeCost).toBe(archer.levels[1]?.cost);
     expect(hud.sellRefund).toBe(Math.floor(50 * ECONOMY.sellRefundRatio));
+    expect(hud.selectedLevel).toBe(archer.levels[0]);
+    expect(hud.nextLevel).toBe(archer.levels[1]);
   });
 
   it('reports a null upgrade cost at max level', () => {
@@ -74,6 +85,24 @@ describe('deriveHud', () => {
     );
     expect(hud.upgradeCost).toBeNull();
     expect(hud.sellRefund).toBe(Math.floor(231 * ECONOMY.sellRefundRatio));
+    expect(hud.selectedLevel).toBe(archer.levels[level - 1]);
+    expect(hud.nextLevel).toBeNull();
+  });
+
+  it('derives the build options from the player faction, in role order with hotkeys', () => {
+    const state = makeState({ players: [makePlayer({ faction: 'orcs' })] });
+    const hud = deriveHud(state, 0, null, null);
+    expect(hud.faction).toBe('orcs');
+    expect(hud.buildOptions.map((o) => o.type)).toEqual(
+      getFactionTowers('orcs'),
+    );
+    expect(hud.buildOptions.map((o) => o.role)).toEqual(TOWER_ROLES);
+    expect(hud.buildOptions.map((o) => o.hotkey)).toEqual([1, 2, 3, 4]);
+    for (const option of hud.buildOptions) {
+      expect(option.cost).toBe(getTowerDef(option.type).levels[0]?.cost);
+    }
+    // Derived once per faction: the same array is reused across snapshots.
+    expect(deriveHud(state, 0, null, null).buildOptions).toBe(hud.buildOptions);
   });
 
   it('returns no selection when the selected id does not exist', () => {
@@ -103,10 +132,10 @@ describe('LocalGameBridge', () => {
   it('pushes a snapshot right after build mode or selection changes, not when unchanged', () => {
     const modes: (string | null)[] = [];
     bridge.onHud((h) => modes.push(h.buildMode));
-    bridge.setBuildMode('archer');
-    bridge.setBuildMode('archer');
+    bridge.setBuildMode('human-archer');
+    bridge.setBuildMode('human-archer');
     bridge.setBuildMode(null);
-    expect(modes).toEqual([null, 'archer', null]);
+    expect(modes).toEqual([null, 'human-archer', null]);
   });
 
   it('keeps build mode and selection mutually exclusive', () => {
@@ -115,12 +144,12 @@ describe('LocalGameBridge', () => {
     });
     const changes = vi.fn();
     bridge.onChange(changes);
-    bridge.setBuildMode('archer');
+    bridge.setBuildMode('human-archer');
     bridge.select(3);
     expect(bridge.getBuildMode()).toBeNull();
     expect(bridge.getSelectedTowerId()).toBe(3);
     expect(bridge.getHud().selectedTower?.id).toBe(3);
-    bridge.setBuildMode('archer');
+    bridge.setBuildMode('human-archer');
     expect(bridge.getSelectedTowerId()).toBeNull();
     expect(changes).toHaveBeenCalledTimes(3);
   });
@@ -159,14 +188,14 @@ describe('LocalGameBridge', () => {
     session.nextResult = { ok: false, reason: 'NotEnoughGold' };
     bridge.issue({
       type: 'PlaceTower',
-      towerType: 'archer',
+      towerType: 'human-archer',
       pos: { x: 1, y: 1 },
     });
     session.tick();
     expect(rejected).toHaveBeenCalledTimes(1);
     expect(rejected).toHaveBeenCalledWith('NotEnoughGold', {
       type: 'PlaceTower',
-      towerType: 'archer',
+      towerType: 'human-archer',
       pos: { x: 1, y: 1 },
     });
   });

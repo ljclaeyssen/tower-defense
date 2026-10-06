@@ -1,17 +1,30 @@
-import { ECONOMY, getTowerDef } from '@td/shared';
+import {
+  DEFAULT_FACTION,
+  ECONOMY,
+  getFactionTowers,
+  getTowerDef,
+  isFactionId,
+} from '@td/shared';
 import type {
   Command,
   CommandResult,
   EntityId,
+  FactionId,
   GameEvent,
   GameState,
   LaneState,
   PlayerId,
   RejectReason,
+  TowerLevelDef,
   TowerState,
   TowerTypeId,
 } from '@td/shared';
-import type { GameBridge, GameSession, HudSnapshot } from '../api.js';
+import type {
+  BuildOption,
+  GameBridge,
+  GameSession,
+  HudSnapshot,
+} from '../api.js';
 
 /** Lane owned by `playerId` (lanes are indexed by player id, but look it up defensively). */
 export function findLane(
@@ -35,9 +48,39 @@ export function findTower(
   );
 }
 
+/** Definition of the current level of `tower` (null for an unknown level). */
+export function levelOf(tower: TowerState): TowerLevelDef | null {
+  return getTowerDef(tower.type).levels[tower.level - 1] ?? null;
+}
+
+/** Definition of the next level of `tower`, or null at max level. */
+export function nextLevelOf(tower: TowerState): TowerLevelDef | null {
+  return getTowerDef(tower.type).levels[tower.level] ?? null;
+}
+
 /** Cost of the next level of `tower`, or null at max level. */
 export function upgradeCostOf(tower: TowerState): number | null {
-  return getTowerDef(tower.type).levels[tower.level]?.cost ?? null;
+  return nextLevelOf(tower)?.cost ?? null;
+}
+
+const buildOptionsCache = new Map<FactionId, readonly BuildOption[]>();
+
+/** Build panel of a faction, in role order with hotkeys 1..n (cached: same array per faction). */
+export function buildOptionsFor(faction: FactionId): readonly BuildOption[] {
+  let options = buildOptionsCache.get(faction);
+  if (!options) {
+    options = getFactionTowers(faction).map((type, i) => {
+      const def = getTowerDef(type);
+      return {
+        type,
+        role: def.role,
+        cost: def.levels[0]?.cost ?? 0,
+        hotkey: i + 1,
+      };
+    });
+    buildOptionsCache.set(faction, options);
+  }
+  return options;
 }
 
 export function sellRefundOf(tower: TowerState): number {
@@ -53,6 +96,8 @@ export function deriveHud(
 ): HudSnapshot {
   const player = state.players.find((p) => p.id === playerId);
   const selectedTower = findTower(state, playerId, selectedTowerId);
+  const faction: FactionId =
+    player && isFactionId(player.faction) ? player.faction : DEFAULT_FACTION;
   return {
     tick: state.tick,
     phase: state.phase,
@@ -61,10 +106,14 @@ export function deriveHud(
     lives: player?.lives ?? 0,
     income: player?.income ?? 0,
     wave: state.wave,
+    faction,
+    buildOptions: buildOptionsFor(faction),
     buildMode,
     selectedTower,
     upgradeCost: selectedTower ? upgradeCostOf(selectedTower) : null,
     sellRefund: selectedTower ? sellRefundOf(selectedTower) : null,
+    selectedLevel: selectedTower ? levelOf(selectedTower) : null,
+    nextLevel: selectedTower ? nextLevelOf(selectedTower) : null,
   };
 }
 

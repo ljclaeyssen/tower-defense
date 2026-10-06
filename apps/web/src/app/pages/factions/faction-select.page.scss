@@ -1,0 +1,105 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 100dvh;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  h1 {
+    margin: 0;
+    color: var(--td-gold);
+  }
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  opacity: 0.8;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+}
+
+.faction-card {
+  display: block;
+  border-left: 4px solid var(--td-accent);
+  border-radius: 0.75rem;
+  transition: box-shadow 0.15s ease;
+
+  &.selected {
+    box-shadow: 0 0 0 2px var(--td-accent);
+  }
+}
+
+.name {
+  color: var(--td-accent);
+}
+
+.desc {
+  margin: 0 0 0.75rem;
+  opacity: 0.85;
+}
+
+.towers-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.towers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0 0.5rem;
+  }
+}
+
+.role {
+  grid-column: 1 / -1;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--td-accent);
+}
+
+.tower-name {
+  font-weight: 600;
+}
+
+.cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+
+  i {
+    font-size: 0.7rem;
+    color: var(--td-gold);
+  }
+}
+
+.stat {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}

@@ -34,6 +34,8 @@ export const toCreepState = (c: SimCreep): CreepState => ({
   hp: c.hp,
   maxHp: c.maxHp,
   speed: c.speed,
+  slowFactor: c.slowFactor,
+  slowTicks: c.slowTicks,
   distanceToExit: c.distanceToExit,
   dir: { x: c.dirX, y: c.dirY },
   waveIndex: c.waveIndex,
@@ -48,6 +50,8 @@ export const toProjectileState = (p: SimProjectile): ProjectileState => ({
   pos: { x: p.x, y: p.y },
   speed: p.speed,
   damage: p.damage,
+  kind: p.kind,
+  visual: p.visual,
 });
 
 const toLaneState = (lane: SimLane): LaneState => ({
@@ -80,6 +84,7 @@ export function buildSnapshot(world: World): GameState {
     players: world.players.map((p) => ({
       id: p.id,
       team: p.team,
+      faction: p.faction,
       gold: p.gold,
       lives: p.lives,
       income: p.income,

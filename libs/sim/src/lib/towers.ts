@@ -1,4 +1,4 @@
-import { getTowerDef, type TowerLevelDef } from '@td/shared';
+import { getTowerLevel, type TowerLevelDef } from '@td/shared';
 import { towerCenter } from './grid.js';
 import {
   allocId,
@@ -11,11 +11,8 @@ import {
 } from './model.js';
 import { toProjectileState } from './snapshot.js';
 
-export function levelDef(tower: SimTower): TowerLevelDef {
-  const def = getTowerDef(tower.type).levels[tower.level - 1];
-  if (!def) throw new Error(`tower ${tower.id}: invalid level ${tower.level}`);
-  return def;
-}
+export const levelDef = (tower: SimTower): TowerLevelDef =>
+  getTowerLevel(tower.type, tower.level);
 
 function inRange(
   cx: number,
@@ -76,8 +73,11 @@ export function updateTowers(world: World): void {
         targetId: target.id,
         x: c.x,
         y: c.y,
-        speed: def.projectileSpeed,
+        speed: def.projectile.speed,
         damage: def.damage,
+        attack: def.attack,
+        kind: def.attack.kind,
+        visual: def.projectile.visual,
       };
       lane.projectiles.push(projectile);
       tower.cooldown = def.cooldownTicks;

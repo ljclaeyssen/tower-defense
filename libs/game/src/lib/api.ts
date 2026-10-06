@@ -1,6 +1,7 @@
 import type {
   Command,
   CommandResult,
+  FactionId,
   GameConfig,
   GameEvent,
   GamePhase,
@@ -8,6 +9,8 @@ import type {
   GameState,
   PlayerId,
   RejectReason,
+  TowerLevelDef,
+  TowerRole,
   TowerState,
   TowerTypeId,
   WaveState,
@@ -38,6 +41,16 @@ export interface GameSession {
   destroy(): void;
 }
 
+/** One entry of the build panel: a tower of the player's faction. */
+export interface BuildOption {
+  readonly type: TowerTypeId;
+  readonly role: TowerRole;
+  /** Level 1 cost. */
+  readonly cost: number;
+  /** Keyboard digit (1..n, in role order). */
+  readonly hotkey: number;
+}
+
 /** HUD snapshot pushed to the host application at most once per simulation tick. */
 export interface HudSnapshot {
   readonly tick: number;
@@ -47,12 +60,20 @@ export interface HudSnapshot {
   readonly lives: number;
   readonly income: number;
   readonly wave: WaveState;
+  /** Faction of the local player. */
+  readonly faction: FactionId;
+  /** Towers the local player may build, in role order (same array instance for a given faction). */
+  readonly buildOptions: readonly BuildOption[];
   readonly buildMode: TowerTypeId | null;
   readonly selectedTower: TowerState | null;
   /** Cost of the next level of the selected tower, or null when none selected / max level. */
   readonly upgradeCost: number | null;
   /** Gold returned if the selected tower is sold, or null when none selected. */
   readonly sellRefund: number | null;
+  /** Definition of the selected tower's current level (role stats), or null. */
+  readonly selectedLevel: TowerLevelDef | null;
+  /** Definition of the selected tower's next level, or null when none selected / max level. */
+  readonly nextLevel: TowerLevelDef | null;
 }
 
 /** Typed bridge between the host application (Angular) and the Phaser game. Framework-agnostic. */

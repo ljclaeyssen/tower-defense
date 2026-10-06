@@ -15,7 +15,8 @@ import {
   type GameSession,
   type LaunchedGame,
 } from '@td/game';
-import { DEFAULT_PVE_CONFIG } from '@td/shared';
+import { DEFAULT_FACTION, pveConfigFor } from '@td/shared';
+import { parseFaction } from '../core/faction-preference';
 import { GameFacade } from './game.facade';
 
 /** `?seed=123` makes a game reproducible; anything else falls back to a time-based seed. */
@@ -45,8 +46,12 @@ export class GameHostComponent implements OnDestroy {
   private readonly container =
     viewChild.required<ElementRef<HTMLDivElement>>('container');
 
-  readonly seed = signal(
-    resolveSeed(inject(ActivatedRoute).snapshot.queryParamMap.get('seed')),
+  private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+
+  readonly seed = signal(resolveSeed(this.query.get('seed')));
+  /** Validated by the route guard; the fallback only covers direct use outside the play route. */
+  readonly faction = signal(
+    parseFaction(this.query.get('faction')) ?? DEFAULT_FACTION,
   );
 
   private session: GameSession | null = null;
@@ -67,7 +72,7 @@ export class GameHostComponent implements OnDestroy {
 
   private start(): void {
     this.session = createLocalSession({
-      config: DEFAULT_PVE_CONFIG,
+      config: pveConfigFor(this.faction()),
       seed: this.seed(),
     });
     this.launched = launchGame({

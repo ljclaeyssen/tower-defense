@@ -1,4 +1,16 @@
-import type { GameConfig, GameEvent, GridPos, MapDef } from '@td/shared';
+import {
+  DEFAULT_FACTION,
+  TOWER_ROLES,
+  getFactionTowers,
+  getMaxLevel,
+  type FactionId,
+  type GameConfig,
+  type GameEvent,
+  type GridPos,
+  type MapDef,
+  type TowerRole,
+  type TowerTypeId,
+} from '@td/shared';
 import type { Game } from './api.js';
 import { createGame } from './game.js';
 
@@ -68,18 +80,27 @@ export const LONG_MAP: MapDef = {
   ],
 };
 
-export const pveConfig = (map?: MapDef): GameConfig => ({
+export const pveConfig = (
+  map?: MapDef,
+  faction: FactionId = DEFAULT_FACTION,
+): GameConfig => ({
   mode: 'pve',
-  players: [{ id: 0, team: 'blue' }],
+  players: [{ id: 0, team: 'blue', faction }],
   mapId: 'basic',
   ...(map ? { mapOverride: map } : {}),
 });
 
-export const pvpConfig = (map?: MapDef): GameConfig => ({
+export const pvpConfig = (
+  map?: MapDef,
+  factions: readonly [FactionId, FactionId] = [
+    DEFAULT_FACTION,
+    DEFAULT_FACTION,
+  ],
+): GameConfig => ({
   mode: 'pvp',
   players: [
-    { id: 0, team: 'blue' },
-    { id: 1, team: 'red' },
+    { id: 0, team: 'blue', faction: factions[0] },
+    { id: 1, team: 'red', faction: factions[1] },
   ],
   mapId: 'basic',
   ...(map ? { mapOverride: map } : {}),
@@ -95,60 +116,110 @@ export function stepN(game: Game, n: number): GameEvent[] {
   return events;
 }
 
+/** Places any tower type for `playerId`. */
+export const placeTower = (
+  game: Game,
+  towerType: TowerTypeId,
+  pos: GridPos,
+  playerId = 0,
+) => game.apply({ type: 'PlaceTower', towerType, pos }, playerId);
+
+/** Shortcut: places the humans' single-target tower (`human-archer`) at (x, y). */
 export const place = (game: Game, x: number, y: number, playerId = 0) =>
-  game.apply(
-    { type: 'PlaceTower', towerType: 'archer', pos: { x, y } },
-    playerId,
-  );
+  placeTower(game, 'human-archer', { x, y }, playerId);
 
 /** PvP helper: player 1 sends `count` beetles into lane 0 (spawning from the current tick on). */
 export const sendToLane0 = (game: Game, count = 1) =>
   game.apply({ type: 'SendCreeps', creepType: 'beetle', count }, 1);
 
-/**
- * One archer on the ground of each corridor between vertical road segments. Each tower center is
- * 2.5 and 3.5 cells from the two roads bounding its corridor, so it covers both.
- */
-export const BALANCE_BUILD: readonly GridPos[] = [
-  { x: 6, y: 4 },
-  { x: 12, y: 9 },
-  { x: 18, y: 4 },
-];
+/** Tower type of `faction` for `role` (factions list one tower per role, in TOWER_ROLES order). */
+export function towerOf(faction: FactionId, role: TowerRole): TowerTypeId {
+  const type = getFactionTowers(faction)[TOWER_ROLES.indexOf(role)];
+  if (!type) throw new Error(`faction ${faction} has no ${role} tower`);
+  return type;
+}
 
 /**
- * Scripted PvE game on the real `basic` map. With `build`, three archers are placed along the
- * road (see BALANCE_BUILD) at tick 0, then every 100 ticks the lowest-level tower (tie: lowest id) is
- * upgraded as long as gold allows. Runs until the game ends (or `maxTicks`).
+ * Ground positions of the scripted build on the serpentine `basic` map, one per role, close to the
+ * road U-turns so that even short-range towers (orcs) cover two or three road segments:
+ * corridor 1 (between the x=4 and x=10 runs) near the bottom U-turn for single and slow,
+ * corridor 2 (between x=10 and x=16) under the top U-turn (row 2) for pierce and burst.
+ */
+export const BALANCE_POSITIONS: Readonly<Record<TowerRole, GridPos>> = {
+  single: { x: 6, y: 10 },
+  slow: { x: 6, y: 7 },
+  pierce: { x: 12, y: 3 },
+  burst: { x: 12, y: 6 },
+};
+
+/** Build order: single + slow fit the 150 starting gold, pierce and burst follow as gold allows. */
+export const BALANCE_ORDER: readonly TowerRole[] = [
+  'single',
+  'slow',
+  'pierce',
+  'burst',
+];
+
+export interface BuildStep {
+  readonly type: TowerTypeId;
+  readonly pos: GridPos;
+}
+
+/** The faction's 4 towers (one per role) in build order, on BALANCE_POSITIONS (overridable). */
+export function scriptedBuild(
+  faction: FactionId,
+  positions: Partial<Record<TowerRole, GridPos>> = {},
+): BuildStep[] {
+  return BALANCE_ORDER.map((role) => ({
+    type: towerOf(faction, role),
+    pos: positions[role] ?? BALANCE_POSITIONS[role],
+  }));
+}
+
+/**
+ * Scripted PvE game on the real `basic` map for `faction` (null = no towers at all).
+ * At tick 0 and then every 100 ticks: place the pending towers of `scriptedBuild` in order while
+ * affordable (stopping at the first unaffordable one); once all are placed, upgrade the
+ * lowest-level tower (tie: lowest id) while gold allows. Runs until the game ends (or `maxTicks`).
  */
 export function runScriptedPve(
-  build: boolean,
+  faction: FactionId | null,
   seed = 1,
-  maxTicks = 20000,
+  options: {
+    positions?: Partial<Record<TowerRole, GridPos>>;
+    maxTicks?: number;
+  } = {},
 ): { game: Game; events: GameEvent[] } {
-  const game = createGame(pveConfig(), seed);
+  const game = createGame(
+    pveConfig(undefined, faction ?? DEFAULT_FACTION),
+    seed,
+  );
+  const pending = faction ? scriptedBuild(faction, options.positions) : [];
+  const maxTicks = options.maxTicks ?? 20000;
   const events: GameEvent[] = [];
-  if (build) {
-    for (const p of BALANCE_BUILD) place(game, p.x, p.y);
-  }
-  events.push(...game.drainEvents());
+  const act = (): void => {
+    while (pending.length > 0) {
+      const next = pending[0];
+      if (!next || !placeTower(game, next.type, next.pos).ok) return;
+      pending.shift();
+    }
+    for (;;) {
+      const towers = game.getState().lanes[0]?.towers ?? [];
+      const candidate = [...towers]
+        .filter((t) => t.level < getMaxLevel(t.type))
+        .sort((a, b) => a.level - b.level || a.id - b.id)[0];
+      if (
+        !candidate ||
+        !game.apply({ type: 'UpgradeTower', towerId: candidate.id }, 0).ok
+      )
+        return;
+    }
+  };
   while (
     game.getState().phase === 'running' &&
     game.getState().tick < maxTicks
   ) {
-    const tick = game.getState().tick;
-    if (build && tick > 0 && tick % 100 === 0) {
-      for (;;) {
-        const towers = game.getState().lanes[0]?.towers ?? [];
-        const candidate = [...towers]
-          .filter((t) => t.level < 3)
-          .sort((a, b) => a.level - b.level || a.id - b.id)[0];
-        if (
-          !candidate ||
-          !game.apply({ type: 'UpgradeTower', towerId: candidate.id }, 0).ok
-        )
-          break;
-      }
-    }
+    if (faction && game.getState().tick % 100 === 0) act();
     game.step();
     events.push(...game.drainEvents());
   }

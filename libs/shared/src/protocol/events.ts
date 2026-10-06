@@ -28,6 +28,15 @@ export type GameEvent =
       readonly projectileId: EntityId;
       readonly damage: number;
       readonly hpAfter: number;
+      /** False for secondary victims of pierce/burst attacks (same projectileId as the primary hit). */
+      readonly primary: boolean;
+    }
+  | {
+      readonly type: 'CreepSlowed';
+      readonly playerId: PlayerId;
+      readonly creepId: EntityId;
+      readonly factor: number;
+      readonly ticks: number;
     }
   | {
       readonly type: 'CreepKilled';

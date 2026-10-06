@@ -153,3 +153,24 @@ dark, top lightest), grid cell 32×16 logical px, anchor at the footprint center
 - The Colyseus server is not deployed yet: phase 3/4 adds a Docker image (GHCR, ARM64), a compose
   file in `/opt/apps/tower-defense` bound to `127.0.0.1:2567`, and a `/ws` reverse proxy in the
   Caddy site.
+
+## Factions and tower roles (data-driven)
+
+- Five factions: humans, elves, orcs, undead, dwarves (`libs/shared/src/data/factions.json`), each with one tower per role in
+  `TOWER_ROLES` order: `single`, `pierce`, `slow`, `burst`. The order drives the build panel and the
+  hotkeys 1-4. A player builds only the towers of `PlayerConfig.faction` (`WrongFaction` otherwise).
+- Every tower level (`towers.json`) carries its full `attack` (kind + params), its `projectile`
+  (`visual` key, speed) and its `model` key, so a level can change behaviour and looks. Keys:
+  model `"<towerId>-<level>"`, projectile visual `"<shape>-<faction>"`.
+- The sim resolves impacts by `attack.kind` in `libs/sim/src/lib/projectiles.ts`; the renderer maps
+  `model` / `visual` keys through `libs/game/src/lib/visuals/*-registry.ts` (derived placeholders now,
+  atlas frames in phase 2 under the same keys).
+- **Add a tower**: append an entry to `towers.json` (never reorder: the key order is hashed), list it
+  in its faction's `towers` array if it replaces a role, add `towers.<id>.name/desc` in both i18n
+  files. Nothing else, unless its `model` / `visual` keys need a registry override.
+- **Add a faction**: add it to `factions.json` with 4 tower ids, write the 4 towers, add
+  `factions.<id>.name/desc` + tower keys in i18n, give it a palette in the model registry.
+- **Add a role**: extend `TowerRole` / `TOWER_ROLES` and `AttackDef` in `schema.ts`, add one impact
+  case in the sim, one shape in the registries, one `roles.<role>` i18n key and one HUD stat line.
+- The shared spec (`libs/shared/src/lib.spec.ts`) enforces the invariants (one tower per role per
+  faction, `attack.kind === role`, key naming); the sim balance spec plays each faction to victory.

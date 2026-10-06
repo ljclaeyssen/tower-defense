@@ -8,7 +8,8 @@ import type {
   Team,
   Vec2,
 } from '../types.js';
-import type { CreepTypeId, TowerTypeId } from '../data/index.js';
+import type { CreepTypeId, FactionId, TowerTypeId } from '../data/index.js';
+import type { AttackKind } from '../data/schema.js';
 
 export interface TowerState {
   readonly id: EntityId;
@@ -35,8 +36,12 @@ export interface CreepState {
   readonly pos: Vec2;
   readonly hp: number;
   readonly maxHp: number;
-  /** Cells per tick. */
+  /** Base speed in cells per tick (before slows). */
   readonly speed: number;
+  /** Current speed multiplier from slow effects (1 = none). Effective speed = speed * slowFactor. */
+  readonly slowFactor: number;
+  /** Ticks before the slow expires (0 when none). */
+  readonly slowTicks: number;
   /** Remaining path length to the exit in cells (for "first" targeting and HUD). */
   readonly distanceToExit: number;
   /** Unit vector of the current movement (for rendering the facing direction). */
@@ -54,6 +59,10 @@ export interface ProjectileState {
   /** Cells per tick. */
   readonly speed: number;
   readonly damage: number;
+  /** Attack behaviour applied on impact (see `AttackDef`). */
+  readonly kind: AttackKind;
+  /** Renderer registry key of the projectile visual. */
+  readonly visual: string;
 }
 
 export interface FlowFieldState {
@@ -82,6 +91,7 @@ export interface LaneState {
 export interface PlayerState {
   readonly id: PlayerId;
   readonly team: Team;
+  readonly faction: FactionId;
   readonly gold: number;
   readonly lives: number;
   /** Gold granted every `economy.incomePeriodTicks`. */

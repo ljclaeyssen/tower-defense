@@ -1,4 +1,9 @@
-import { CREEP_TYPE_IDS, TOWER_TYPE_IDS } from '@td/shared';
+import {
+  CREEP_TYPE_IDS,
+  FACTION_IDS,
+  TOWER_ROLES,
+  TOWER_TYPE_IDS,
+} from '@td/shared';
 import type { World } from './model.js';
 
 /** FNV-1a 32-bit hasher over a stream of 32-bit integers (little-endian bytes). */
@@ -37,9 +42,10 @@ export function createHasher(): Hasher {
 }
 
 /**
- * Canonical state hash. Fixed feed order: tick, rng state, players (gold, lives, income, alive),
- * then per lane: towers (id, type index, level, pos, cooldown, invested, targetId), creeps (id,
- * type index, pos, hp, maxHp), projectiles (id, pos, targetId); finally the wave fields.
+ * Canonical state hash. Fixed feed order: tick, rng state, players (gold, lives, income, alive,
+ * faction index), then per lane: towers (id, type index, level, pos, cooldown, invested,
+ * targetId), creeps (id, type index, pos, hp, maxHp, slowFactor, slowTicks), projectiles (id, pos,
+ * targetId, attack kind index in TOWER_ROLES order); finally the wave fields.
  * Collection lengths are fed before each collection; null ids are fed as -1.
  */
 export function hashWorld(world: World): number {
@@ -52,6 +58,7 @@ export function hashWorld(world: World): number {
     h.addInt(p.lives);
     h.addInt(p.income);
     h.addInt(p.alive ? 1 : 0);
+    h.addInt(FACTION_IDS.indexOf(p.faction));
   }
   for (const lane of world.lanes) {
     h.addInt(lane.towers.length);
@@ -73,6 +80,8 @@ export function hashWorld(world: World): number {
       h.addFloat(c.y);
       h.addFloat(c.hp);
       h.addInt(c.maxHp);
+      h.addFloat(c.slowFactor);
+      h.addInt(c.slowTicks);
     }
     h.addInt(lane.projectiles.length);
     for (const p of lane.projectiles) {
@@ -80,6 +89,8 @@ export function hashWorld(world: World): number {
       h.addFloat(p.x);
       h.addFloat(p.y);
       h.addInt(p.targetId);
+      // Attack kinds share their names (and order) with TOWER_ROLES.
+      h.addInt(TOWER_ROLES.indexOf(p.kind));
     }
   }
   h.addInt(world.wave.index);

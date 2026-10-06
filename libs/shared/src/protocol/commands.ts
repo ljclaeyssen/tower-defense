@@ -28,6 +28,7 @@ export type RejectReason =
   | 'GameNotRunning'
   | 'UnknownPlayer'
   | 'UnknownType'
+  | 'WrongFaction'
   | 'OutOfBounds'
   | 'CellBlocked'
   | 'OverlapsTower'

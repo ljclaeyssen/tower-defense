@@ -14,7 +14,7 @@
   "home": {
     "howToPlay": {
       "title": "How to play",
-      "build": "Pick a tower (or press 1-9) and click the grass to build it. Creeps follow the road, and nothing can be built on it.",
+      "build": "Pick one of your faction's four towers (or press 1-4) and click the grass to build it. Creeps follow the road, and nothing can be built on it.",
       "path": "Build along the bends of the road: a tower that covers two stretches shoots twice as often.",
       "upgrade": "Click a tower to upgrade or sell it. Kills and income earn gold.",
       "waves": "Press N to call the next wave early. Lose all your lives and the game is over."
@@ -47,11 +47,95 @@
     "cancel": "Cancel",
     "close": "Close",
     "seed": "Seed",
-    "selectTowerHint": "Select a tower to build, then click on the map"
+    "selectTowerHint": "Select a tower to build, then click on the map",
+    "behind": "Hits {{cells}} cells behind at {{percent}}%",
+    "slowStat": "Slows by {{percent}}% for {{seconds}}s",
+    "splash": "Area {{radius}} cells at {{percent}}%",
+    "faction": "Faction",
+    "role": "Role",
+    "damageStat": "{{damage}} damage",
+    "nextDamage": "Next level: {{damage}} damage"
   },
   "towers": {
-    "archer": {
-      "name": "Archer tower"
+    "human-archer": {
+      "name": "Archer tower",
+      "desc": "Fires arrows at a single target."
+    },
+    "human-stormcaller": {
+      "name": "Stormcaller",
+      "desc": "Hurls lightning that tears through the line of creeps."
+    },
+    "human-frostmage": {
+      "name": "Frost mage",
+      "desc": "Chills a target with ice and slows it down."
+    },
+    "human-cannon": {
+      "name": "Cannon",
+      "desc": "Fires heavy shells that burst on impact."
+    },
+    "elf-ranger": {
+      "name": "Ranger bower",
+      "desc": "Looses swift arrows from a long distance."
+    },
+    "elf-windsinger": {
+      "name": "Wind singer",
+      "desc": "Sings a gale that pierces through several creeps."
+    },
+    "elf-moonshrine": {
+      "name": "Moonfrost shrine",
+      "desc": "Bathes a target in moonfrost, slowing its steps."
+    },
+    "elf-ballista": {
+      "name": "Ballista",
+      "desc": "Launches a huge bolt that explodes in an area."
+    },
+    "orc-spearthrower": {
+      "name": "Spear thrower",
+      "desc": "Throws brutal spears at a single target."
+    },
+    "orc-dusttotem": {
+      "name": "Dust totem",
+      "desc": "Whirls a cloud of dust that cuts through the line."
+    },
+    "orc-icetroll": {
+      "name": "Ice troll",
+      "desc": "Hurls frozen boulders that slow its prey."
+    },
+    "orc-catapult": {
+      "name": "Catapult",
+      "desc": "Flings massive stones that crush groups of creeps."
+    },
+    "undead-skeletonarcher": {
+      "name": "Skeleton archer",
+      "desc": "Shoots bone-tipped arrows at a single target."
+    },
+    "undead-banshee": {
+      "name": "Banshee",
+      "desc": "Wails a spectral scream that pierces the line."
+    },
+    "undead-lich": {
+      "name": "Lich",
+      "desc": "Casts a freezing curse that slows its victim."
+    },
+    "undead-plaguehurler": {
+      "name": "Plague hurler",
+      "desc": "Hurls plague-ridden flesh that bursts in an area."
+    },
+    "dwarf-rifletower": {
+      "name": "Rifle tower",
+      "desc": "Fires slugs from a long rifle at a single target."
+    },
+    "dwarf-teslacoil": {
+      "name": "Tesla coil",
+      "desc": "Discharges a lightning arc that chains through the line."
+    },
+    "dwarf-cryosprayer": {
+      "name": "Cryo sprayer",
+      "desc": "Sprays supercooled gas that slows its target."
+    },
+    "dwarf-mortar": {
+      "name": "Mortar team",
+      "desc": "Lobs explosive shells that burst over a wide area."
     }
   },
   "creeps": {
@@ -74,7 +158,8 @@
     "MaxLevel": "This tower is already at max level",
     "InvalidCount": "Invalid amount",
     "NotAvailableInMode": "Not available in this game mode",
-    "NoWaveToStart": "There is no wave left to start"
+    "NoWaveToStart": "There is no wave left to start",
+    "WrongFaction": "That tower belongs to another faction"
   },
   "gameover": {
     "title": "Game over",
@@ -92,5 +177,39 @@
     "language": "Language",
     "english": "English",
     "french": "French"
+  },
+  "factions": {
+    "page": {
+      "title": "Choose your faction",
+      "subtitle": "Pick the army that will defend the road.",
+      "play": "Play",
+      "towers": "Towers"
+    },
+    "humans": {
+      "name": "Humans",
+      "desc": "Balanced defenses of steel and gunpowder."
+    },
+    "elves": {
+      "name": "Elves",
+      "desc": "Fast, long-range towers that trade punch for precision."
+    },
+    "orcs": {
+      "name": "Orcs",
+      "desc": "Brutal, slow-firing towers with crushing hits."
+    },
+    "undead": {
+      "name": "Undead",
+      "desc": "Chilling curses and creeping plague."
+    },
+    "dwarves": {
+      "name": "Dwarves",
+      "desc": "Engineers of rifles, tesla coils and gnomish tinkering: precise, tinkered defenses."
+    }
+  },
+  "roles": {
+    "single": "Single target",
+    "pierce": "Piercing",
+    "slow": "Slowing",
+    "burst": "Heavy hit"
   }
 }

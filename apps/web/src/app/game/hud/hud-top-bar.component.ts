@@ -9,6 +9,7 @@ import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
+import { getFactionDef } from '@td/shared';
 import { GameFacade } from '../game.facade';
 
 @Component({
@@ -74,7 +75,12 @@ import { GameFacade } from '../game.facade';
       />
     </div>
     @if (seed() !== null) {
-      <span class="seed">{{ 'hud.seed' | translate }} {{ seed() }}</span>
+      <span class="seed">
+        @if (factionNameKey(); as nameKey) {
+          {{ nameKey | translate }} &middot;
+        }
+        {{ 'hud.seed' | translate }} {{ seed() }}</span
+      >
     }
   `,
   styles: `
@@ -124,6 +130,11 @@ export class HudTopBar {
     return wave === null
       ? null
       : { current: Math.max(0, wave.index + 1), total: wave.total };
+  });
+
+  protected readonly factionNameKey = computed(() => {
+    const faction = this.facade.faction();
+    return faction === null ? null : getFactionDef(faction).nameKey;
   });
 
   protected backToMenu(): void {

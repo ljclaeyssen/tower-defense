@@ -212,18 +212,22 @@ describe('basic map (serpentine road)', () => {
 
   it('only ground is buildable: road and rocks are CellBlocked, ground next to the road is fine', () => {
     const state = game.getState();
-    expect(validatePlacement(state, 0, 'archer', { x: 3, y: 5 })).toBe(
+    expect(validatePlacement(state, 0, 'human-archer', { x: 3, y: 5 })).toBe(
       'CellBlocked',
     ); // touches road x=4
-    expect(validatePlacement(state, 0, 'archer', { x: 0, y: 8 })).toBe(
+    expect(validatePlacement(state, 0, 'human-archer', { x: 0, y: 8 })).toBe(
       'CellBlocked',
     ); // rock (1,9)
-    expect(validatePlacement(state, 0, 'archer', { x: 5, y: 5 })).toBeNull(); // right next to the road
-    expect(validatePlacement(state, 0, 'archer', { x: 2, y: 3 })).toBeNull();
+    expect(
+      validatePlacement(state, 0, 'human-archer', { x: 5, y: 5 }),
+    ).toBeNull(); // right next to the road
+    expect(
+      validatePlacement(state, 0, 'human-archer', { x: 2, y: 3 }),
+    ).toBeNull();
     // No tower position can ever block the road.
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        expect(validatePlacement(state, 0, 'archer', { x, y })).not.toBe(
+        expect(validatePlacement(state, 0, 'human-archer', { x, y })).not.toBe(
           'BlocksPath',
         );
       }

@@ -5,6 +5,7 @@ import type { GameBridge, HudSnapshot } from '@td/game';
 import { TICK_RATE, type RejectReason, type TowerTypeId } from '@td/shared';
 
 const REJECTION_TOAST_LIFE_MS = 2000;
+const NO_BUILD_OPTIONS: HudSnapshot['buildOptions'] = [];
 
 /**
  * Angular-side view of the running game. Provided by the play page so it lives and dies with it.
@@ -35,6 +36,13 @@ export class GameFacade {
   readonly selectedTower = computed(() => this._hud()?.selectedTower ?? null);
   readonly upgradeCost = computed(() => this._hud()?.upgradeCost ?? null);
   readonly sellRefund = computed(() => this._hud()?.sellRefund ?? null);
+  readonly faction = computed(() => this._hud()?.faction ?? null);
+  /** Towers the player may build, in hotkey order: single source of truth for the panel and the keys 1-9. */
+  readonly buildOptions = computed(
+    () => this._hud()?.buildOptions ?? NO_BUILD_OPTIONS,
+  );
+  readonly selectedLevel = computed(() => this._hud()?.selectedLevel ?? null);
+  readonly nextLevel = computed(() => this._hud()?.nextLevel ?? null);
 
   readonly canStartWave = computed(() => {
     const hud = this._hud();

@@ -1,28 +1,1171 @@
 {
-  "archer": {
-    "id": "archer",
-    "nameKey": "towers.archer.name",
+  "human-archer": {
+    "id": "human-archer",
+    "faction": "humans",
+    "role": "single",
+    "nameKey": "towers.human-archer.name",
+    "descKey": "towers.human-archer.desc",
     "levels": [
       {
         "cost": 50,
         "damage": 14,
         "range": 4,
         "cooldownTicks": 12,
-        "projectileSpeed": 0.6
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-humans",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "human-archer-1"
       },
       {
         "cost": 60,
         "damage": 26,
         "range": 4.5,
         "cooldownTicks": 11,
-        "projectileSpeed": 0.6
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-humans",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "human-archer-2"
       },
       {
         "cost": 120,
         "damage": 46,
         "range": 5,
         "cooldownTicks": 10,
-        "projectileSpeed": 0.7
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-humans",
+          "speed": 0.7,
+          "homing": true
+        },
+        "model": "human-archer-3"
+      }
+    ]
+  },
+  "human-stormcaller": {
+    "id": "human-stormcaller",
+    "faction": "humans",
+    "role": "pierce",
+    "nameKey": "towers.human-stormcaller.name",
+    "descKey": "towers.human-stormcaller.desc",
+    "levels": [
+      {
+        "cost": 80,
+        "damage": 12,
+        "range": 3.5,
+        "cooldownTicks": 20,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 2,
+          "behindRatio": 0.6
+        },
+        "projectile": {
+          "visual": "swirl-humans",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "human-stormcaller-1"
+      },
+      {
+        "cost": 90,
+        "damage": 22,
+        "range": 4,
+        "cooldownTicks": 18,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.7
+        },
+        "projectile": {
+          "visual": "swirl-humans",
+          "speed": 0.45,
+          "homing": true
+        },
+        "model": "human-stormcaller-2"
+      },
+      {
+        "cost": 150,
+        "damage": 38,
+        "range": 4.5,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.8
+        },
+        "projectile": {
+          "visual": "swirl-humans",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "human-stormcaller-3"
+      }
+    ]
+  },
+  "human-frostmage": {
+    "id": "human-frostmage",
+    "faction": "humans",
+    "role": "slow",
+    "nameKey": "towers.human-frostmage.name",
+    "descKey": "towers.human-frostmage.desc",
+    "levels": [
+      {
+        "cost": 70,
+        "damage": 6,
+        "range": 4,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.6,
+          "durationTicks": 40
+        },
+        "projectile": {
+          "visual": "shard-humans",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "human-frostmage-1"
+      },
+      {
+        "cost": 80,
+        "damage": 10,
+        "range": 4.5,
+        "cooldownTicks": 15,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.5,
+          "durationTicks": 50
+        },
+        "projectile": {
+          "visual": "shard-humans",
+          "speed": 0.55,
+          "homing": true
+        },
+        "model": "human-frostmage-2"
+      },
+      {
+        "cost": 140,
+        "damage": 16,
+        "range": 5,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.4,
+          "durationTicks": 60
+        },
+        "projectile": {
+          "visual": "shard-humans",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "human-frostmage-3"
+      }
+    ]
+  },
+  "human-cannon": {
+    "id": "human-cannon",
+    "faction": "humans",
+    "role": "burst",
+    "nameKey": "towers.human-cannon.name",
+    "descKey": "towers.human-cannon.desc",
+    "levels": [
+      {
+        "cost": 120,
+        "damage": 80,
+        "range": 4.5,
+        "cooldownTicks": 70,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 0.75,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-humans",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "human-cannon-1"
+      },
+      {
+        "cost": 140,
+        "damage": 150,
+        "range": 5,
+        "cooldownTicks": 65,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-humans",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "human-cannon-2"
+      },
+      {
+        "cost": 220,
+        "damage": 260,
+        "range": 5.5,
+        "cooldownTicks": 60,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1.25,
+          "splashRatio": 0.6
+        },
+        "projectile": {
+          "visual": "boulder-humans",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "human-cannon-3"
+      }
+    ]
+  },
+  "elf-ranger": {
+    "id": "elf-ranger",
+    "faction": "elves",
+    "role": "single",
+    "nameKey": "towers.elf-ranger.name",
+    "descKey": "towers.elf-ranger.desc",
+    "levels": [
+      {
+        "cost": 50,
+        "damage": 12,
+        "range": 4.5,
+        "cooldownTicks": 10,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-elves",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "elf-ranger-1"
+      },
+      {
+        "cost": 60,
+        "damage": 22,
+        "range": 5,
+        "cooldownTicks": 9,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-elves",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "elf-ranger-2"
+      },
+      {
+        "cost": 120,
+        "damage": 39,
+        "range": 5.5,
+        "cooldownTicks": 8,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-elves",
+          "speed": 0.7,
+          "homing": true
+        },
+        "model": "elf-ranger-3"
+      }
+    ]
+  },
+  "elf-windsinger": {
+    "id": "elf-windsinger",
+    "faction": "elves",
+    "role": "pierce",
+    "nameKey": "towers.elf-windsinger.name",
+    "descKey": "towers.elf-windsinger.desc",
+    "levels": [
+      {
+        "cost": 80,
+        "damage": 10,
+        "range": 4,
+        "cooldownTicks": 18,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 2,
+          "behindRatio": 0.6
+        },
+        "projectile": {
+          "visual": "swirl-elves",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "elf-windsinger-1"
+      },
+      {
+        "cost": 90,
+        "damage": 19,
+        "range": 4.5,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.7
+        },
+        "projectile": {
+          "visual": "swirl-elves",
+          "speed": 0.45,
+          "homing": true
+        },
+        "model": "elf-windsinger-2"
+      },
+      {
+        "cost": 150,
+        "damage": 32,
+        "range": 5,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.8
+        },
+        "projectile": {
+          "visual": "swirl-elves",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "elf-windsinger-3"
+      }
+    ]
+  },
+  "elf-moonshrine": {
+    "id": "elf-moonshrine",
+    "faction": "elves",
+    "role": "slow",
+    "nameKey": "towers.elf-moonshrine.name",
+    "descKey": "towers.elf-moonshrine.desc",
+    "levels": [
+      {
+        "cost": 70,
+        "damage": 5,
+        "range": 4.5,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.6,
+          "durationTicks": 40
+        },
+        "projectile": {
+          "visual": "shard-elves",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "elf-moonshrine-1"
+      },
+      {
+        "cost": 80,
+        "damage": 9,
+        "range": 5,
+        "cooldownTicks": 13,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.5,
+          "durationTicks": 50
+        },
+        "projectile": {
+          "visual": "shard-elves",
+          "speed": 0.55,
+          "homing": true
+        },
+        "model": "elf-moonshrine-2"
+      },
+      {
+        "cost": 140,
+        "damage": 14,
+        "range": 5.5,
+        "cooldownTicks": 12,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.4,
+          "durationTicks": 60
+        },
+        "projectile": {
+          "visual": "shard-elves",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "elf-moonshrine-3"
+      }
+    ]
+  },
+  "elf-ballista": {
+    "id": "elf-ballista",
+    "faction": "elves",
+    "role": "burst",
+    "nameKey": "towers.elf-ballista.name",
+    "descKey": "towers.elf-ballista.desc",
+    "levels": [
+      {
+        "cost": 120,
+        "damage": 68,
+        "range": 5,
+        "cooldownTicks": 68,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 0.75,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-elves",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "elf-ballista-1"
+      },
+      {
+        "cost": 140,
+        "damage": 128,
+        "range": 5.5,
+        "cooldownTicks": 63,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-elves",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "elf-ballista-2"
+      },
+      {
+        "cost": 220,
+        "damage": 221,
+        "range": 6,
+        "cooldownTicks": 58,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1.25,
+          "splashRatio": 0.6
+        },
+        "projectile": {
+          "visual": "boulder-elves",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "elf-ballista-3"
+      }
+    ]
+  },
+  "orc-spearthrower": {
+    "id": "orc-spearthrower",
+    "faction": "orcs",
+    "role": "single",
+    "nameKey": "towers.orc-spearthrower.name",
+    "descKey": "towers.orc-spearthrower.desc",
+    "levels": [
+      {
+        "cost": 50,
+        "damage": 18,
+        "range": 3.5,
+        "cooldownTicks": 15,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-orcs",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "orc-spearthrower-1"
+      },
+      {
+        "cost": 60,
+        "damage": 33,
+        "range": 4,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-orcs",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "orc-spearthrower-2"
+      },
+      {
+        "cost": 120,
+        "damage": 58,
+        "range": 4.5,
+        "cooldownTicks": 13,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-orcs",
+          "speed": 0.7,
+          "homing": true
+        },
+        "model": "orc-spearthrower-3"
+      }
+    ]
+  },
+  "orc-dusttotem": {
+    "id": "orc-dusttotem",
+    "faction": "orcs",
+    "role": "pierce",
+    "nameKey": "towers.orc-dusttotem.name",
+    "descKey": "towers.orc-dusttotem.desc",
+    "levels": [
+      {
+        "cost": 80,
+        "damage": 15,
+        "range": 3,
+        "cooldownTicks": 23,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 2,
+          "behindRatio": 0.6
+        },
+        "projectile": {
+          "visual": "swirl-orcs",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "orc-dusttotem-1"
+      },
+      {
+        "cost": 90,
+        "damage": 28,
+        "range": 3.5,
+        "cooldownTicks": 21,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.7
+        },
+        "projectile": {
+          "visual": "swirl-orcs",
+          "speed": 0.45,
+          "homing": true
+        },
+        "model": "orc-dusttotem-2"
+      },
+      {
+        "cost": 150,
+        "damage": 48,
+        "range": 4,
+        "cooldownTicks": 19,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.8
+        },
+        "projectile": {
+          "visual": "swirl-orcs",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "orc-dusttotem-3"
+      }
+    ]
+  },
+  "orc-icetroll": {
+    "id": "orc-icetroll",
+    "faction": "orcs",
+    "role": "slow",
+    "nameKey": "towers.orc-icetroll.name",
+    "descKey": "towers.orc-icetroll.desc",
+    "levels": [
+      {
+        "cost": 70,
+        "damage": 8,
+        "range": 3.5,
+        "cooldownTicks": 19,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.6,
+          "durationTicks": 40
+        },
+        "projectile": {
+          "visual": "shard-orcs",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "orc-icetroll-1"
+      },
+      {
+        "cost": 80,
+        "damage": 13,
+        "range": 4,
+        "cooldownTicks": 18,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.5,
+          "durationTicks": 50
+        },
+        "projectile": {
+          "visual": "shard-orcs",
+          "speed": 0.55,
+          "homing": true
+        },
+        "model": "orc-icetroll-2"
+      },
+      {
+        "cost": 140,
+        "damage": 20,
+        "range": 4.5,
+        "cooldownTicks": 17,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.4,
+          "durationTicks": 60
+        },
+        "projectile": {
+          "visual": "shard-orcs",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "orc-icetroll-3"
+      }
+    ]
+  },
+  "orc-catapult": {
+    "id": "orc-catapult",
+    "faction": "orcs",
+    "role": "burst",
+    "nameKey": "towers.orc-catapult.name",
+    "descKey": "towers.orc-catapult.desc",
+    "levels": [
+      {
+        "cost": 120,
+        "damage": 100,
+        "range": 4,
+        "cooldownTicks": 73,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 0.75,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-orcs",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "orc-catapult-1"
+      },
+      {
+        "cost": 140,
+        "damage": 188,
+        "range": 4.5,
+        "cooldownTicks": 68,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-orcs",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "orc-catapult-2"
+      },
+      {
+        "cost": 220,
+        "damage": 325,
+        "range": 5,
+        "cooldownTicks": 63,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1.25,
+          "splashRatio": 0.6
+        },
+        "projectile": {
+          "visual": "boulder-orcs",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "orc-catapult-3"
+      }
+    ]
+  },
+  "undead-skeletonarcher": {
+    "id": "undead-skeletonarcher",
+    "faction": "undead",
+    "role": "single",
+    "nameKey": "towers.undead-skeletonarcher.name",
+    "descKey": "towers.undead-skeletonarcher.desc",
+    "levels": [
+      {
+        "cost": 50,
+        "damage": 14,
+        "range": 4,
+        "cooldownTicks": 12,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-undead",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "undead-skeletonarcher-1"
+      },
+      {
+        "cost": 60,
+        "damage": 26,
+        "range": 4.5,
+        "cooldownTicks": 11,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-undead",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "undead-skeletonarcher-2"
+      },
+      {
+        "cost": 120,
+        "damage": 46,
+        "range": 5,
+        "cooldownTicks": 10,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-undead",
+          "speed": 0.7,
+          "homing": true
+        },
+        "model": "undead-skeletonarcher-3"
+      }
+    ]
+  },
+  "undead-banshee": {
+    "id": "undead-banshee",
+    "faction": "undead",
+    "role": "pierce",
+    "nameKey": "towers.undead-banshee.name",
+    "descKey": "towers.undead-banshee.desc",
+    "levels": [
+      {
+        "cost": 80,
+        "damage": 12,
+        "range": 3.5,
+        "cooldownTicks": 20,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 2,
+          "behindRatio": 0.7
+        },
+        "projectile": {
+          "visual": "swirl-undead",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "undead-banshee-1"
+      },
+      {
+        "cost": 90,
+        "damage": 22,
+        "range": 4,
+        "cooldownTicks": 18,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.8
+        },
+        "projectile": {
+          "visual": "swirl-undead",
+          "speed": 0.45,
+          "homing": true
+        },
+        "model": "undead-banshee-2"
+      },
+      {
+        "cost": 150,
+        "damage": 38,
+        "range": 4.5,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.9
+        },
+        "projectile": {
+          "visual": "swirl-undead",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "undead-banshee-3"
+      }
+    ]
+  },
+  "undead-lich": {
+    "id": "undead-lich",
+    "faction": "undead",
+    "role": "slow",
+    "nameKey": "towers.undead-lich.name",
+    "descKey": "towers.undead-lich.desc",
+    "levels": [
+      {
+        "cost": 70,
+        "damage": 6,
+        "range": 4,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.5,
+          "durationTicks": 60
+        },
+        "projectile": {
+          "visual": "shard-undead",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "undead-lich-1"
+      },
+      {
+        "cost": 80,
+        "damage": 10,
+        "range": 4.5,
+        "cooldownTicks": 15,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.4,
+          "durationTicks": 70
+        },
+        "projectile": {
+          "visual": "shard-undead",
+          "speed": 0.55,
+          "homing": true
+        },
+        "model": "undead-lich-2"
+      },
+      {
+        "cost": 140,
+        "damage": 16,
+        "range": 5,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.3,
+          "durationTicks": 80
+        },
+        "projectile": {
+          "visual": "shard-undead",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "undead-lich-3"
+      }
+    ]
+  },
+  "undead-plaguehurler": {
+    "id": "undead-plaguehurler",
+    "faction": "undead",
+    "role": "burst",
+    "nameKey": "towers.undead-plaguehurler.name",
+    "descKey": "towers.undead-plaguehurler.desc",
+    "levels": [
+      {
+        "cost": 120,
+        "damage": 72,
+        "range": 4.5,
+        "cooldownTicks": 60,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 0.75,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-undead",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "undead-plaguehurler-1"
+      },
+      {
+        "cost": 140,
+        "damage": 135,
+        "range": 5,
+        "cooldownTicks": 55,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-undead",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "undead-plaguehurler-2"
+      },
+      {
+        "cost": 220,
+        "damage": 234,
+        "range": 5.5,
+        "cooldownTicks": 50,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1.25,
+          "splashRatio": 0.6
+        },
+        "projectile": {
+          "visual": "boulder-undead",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "undead-plaguehurler-3"
+      }
+    ]
+  },
+  "dwarf-rifletower": {
+    "id": "dwarf-rifletower",
+    "faction": "dwarves",
+    "role": "single",
+    "nameKey": "towers.dwarf-rifletower.name",
+    "descKey": "towers.dwarf-rifletower.desc",
+    "levels": [
+      {
+        "cost": 50,
+        "damage": 15,
+        "range": 4,
+        "cooldownTicks": 13,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-dwarves",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "dwarf-rifletower-1"
+      },
+      {
+        "cost": 60,
+        "damage": 29,
+        "range": 4.5,
+        "cooldownTicks": 12,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-dwarves",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "dwarf-rifletower-2"
+      },
+      {
+        "cost": 120,
+        "damage": 51,
+        "range": 5,
+        "cooldownTicks": 11,
+        "attack": {
+          "kind": "single"
+        },
+        "projectile": {
+          "visual": "arrow-dwarves",
+          "speed": 0.7,
+          "homing": true
+        },
+        "model": "dwarf-rifletower-3"
+      }
+    ]
+  },
+  "dwarf-teslacoil": {
+    "id": "dwarf-teslacoil",
+    "faction": "dwarves",
+    "role": "pierce",
+    "nameKey": "towers.dwarf-teslacoil.name",
+    "descKey": "towers.dwarf-teslacoil.desc",
+    "levels": [
+      {
+        "cost": 80,
+        "damage": 12,
+        "range": 3.5,
+        "cooldownTicks": 18,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 3,
+          "behindRatio": 0.5
+        },
+        "projectile": {
+          "visual": "swirl-dwarves",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "dwarf-teslacoil-1"
+      },
+      {
+        "cost": 90,
+        "damage": 22,
+        "range": 4,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 4,
+          "behindRatio": 0.6
+        },
+        "projectile": {
+          "visual": "swirl-dwarves",
+          "speed": 0.45,
+          "homing": true
+        },
+        "model": "dwarf-teslacoil-2"
+      },
+      {
+        "cost": 150,
+        "damage": 38,
+        "range": 4.5,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "pierce",
+          "behindCells": 4,
+          "behindRatio": 0.7
+        },
+        "projectile": {
+          "visual": "swirl-dwarves",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "dwarf-teslacoil-3"
+      }
+    ]
+  },
+  "dwarf-cryosprayer": {
+    "id": "dwarf-cryosprayer",
+    "faction": "dwarves",
+    "role": "slow",
+    "nameKey": "towers.dwarf-cryosprayer.name",
+    "descKey": "towers.dwarf-cryosprayer.desc",
+    "levels": [
+      {
+        "cost": 70,
+        "damage": 6,
+        "range": 4.5,
+        "cooldownTicks": 16,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.65,
+          "durationTicks": 50
+        },
+        "projectile": {
+          "visual": "shard-dwarves",
+          "speed": 0.5,
+          "homing": true
+        },
+        "model": "dwarf-cryosprayer-1"
+      },
+      {
+        "cost": 80,
+        "damage": 10,
+        "range": 5,
+        "cooldownTicks": 15,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.55,
+          "durationTicks": 60
+        },
+        "projectile": {
+          "visual": "shard-dwarves",
+          "speed": 0.55,
+          "homing": true
+        },
+        "model": "dwarf-cryosprayer-2"
+      },
+      {
+        "cost": 140,
+        "damage": 16,
+        "range": 5.5,
+        "cooldownTicks": 14,
+        "attack": {
+          "kind": "slow",
+          "factor": 0.45,
+          "durationTicks": 70
+        },
+        "projectile": {
+          "visual": "shard-dwarves",
+          "speed": 0.6,
+          "homing": true
+        },
+        "model": "dwarf-cryosprayer-3"
+      }
+    ]
+  },
+  "dwarf-mortar": {
+    "id": "dwarf-mortar",
+    "faction": "dwarves",
+    "role": "burst",
+    "nameKey": "towers.dwarf-mortar.name",
+    "descKey": "towers.dwarf-mortar.desc",
+    "levels": [
+      {
+        "cost": 120,
+        "damage": 68,
+        "range": 5.5,
+        "cooldownTicks": 70,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-dwarves",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "dwarf-mortar-1"
+      },
+      {
+        "cost": 140,
+        "damage": 128,
+        "range": 6,
+        "cooldownTicks": 65,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1.25,
+          "splashRatio": 0.5
+        },
+        "projectile": {
+          "visual": "boulder-dwarves",
+          "speed": 0.35,
+          "homing": true
+        },
+        "model": "dwarf-mortar-2"
+      },
+      {
+        "cost": 220,
+        "damage": 221,
+        "range": 6.5,
+        "cooldownTicks": 60,
+        "attack": {
+          "kind": "burst",
+          "splashRadius": 1.5,
+          "splashRatio": 0.6
+        },
+        "projectile": {
+          "visual": "boulder-dwarves",
+          "speed": 0.4,
+          "homing": true
+        },
+        "model": "dwarf-mortar-3"
       }
     ]
   }

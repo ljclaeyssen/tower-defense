@@ -3,7 +3,8 @@ import {
   WAVES,
   getCreepDef,
   getMapDef,
-  getTowerDef,
+  getMaxLevel,
+  getTowerLevel,
   type Command,
   type CommandResult,
   type GameConfig,
@@ -28,6 +29,7 @@ import {
   allocId,
   emit,
   isKnownCreepType,
+  isKnownFaction,
   recomputeFlowField,
   type SimLane,
   type SimPlayer,
@@ -72,7 +74,8 @@ function createLane(
   return lane;
 }
 
-function createWorld(config: GameConfig, seed: number): World {
+/** Builds the initial internal world (exported for unit tests; not part of the public API). */
+export function createWorld(config: GameConfig, seed: number): World {
   if (config.players.length === 0)
     throw new Error('createGame: at least one player is required');
   config.players.forEach((p, i) => {
@@ -80,12 +83,15 @@ function createWorld(config: GameConfig, seed: number): World {
       throw new Error(
         `createGame: players[${i}].id must be ${i} (got ${p.id})`,
       );
+    if (!isKnownFaction(p.faction))
+      throw new Error(`createGame: players[${i}] has an unknown faction`);
   });
   const map = config.mapOverride ?? getMapDef(config.mapId);
   const cells = buildCells(map); // validates the road (spawn/exit waypoints, bounds, rocks)
   const players: SimPlayer[] = config.players.map((p) => ({
     id: p.id,
     team: p.team,
+    faction: p.faction,
     gold: ECONOMY.startingGold,
     lives: ECONOMY.startingLives,
     income: ECONOMY.baseIncome,
@@ -139,6 +145,7 @@ function placeTower(
       phase: world.phase,
       lane,
       gold: player.gold,
+      faction: player.faction,
       creepCells: () => laneCreepCells(lane),
     },
     command.towerType,
@@ -146,7 +153,7 @@ function placeTower(
     true,
   );
   if (reason) return reason;
-  const cost = getTowerDef(command.towerType).levels[0]?.cost ?? 0;
+  const cost = getTowerLevel(command.towerType, 1).cost;
   addGold(world, playerId, -cost, 'build');
   const tower: SimTower = {
     id: allocId(world),
@@ -174,9 +181,8 @@ function upgradeTower(
   if (!found) return 'TowerNotFound';
   const { tower } = found;
   if (tower.playerId !== playerId) return 'NotOwner';
-  const levels = getTowerDef(tower.type).levels;
-  if (tower.level >= levels.length) return 'MaxLevel';
-  const cost = levels[tower.level]?.cost ?? 0;
+  if (tower.level >= getMaxLevel(tower.type)) return 'MaxLevel';
+  const cost = getTowerLevel(tower.type, tower.level + 1).cost;
   const player = world.players[playerId];
   if (!player || player.gold < cost) return 'NotEnoughGold';
   tower.level += 1;

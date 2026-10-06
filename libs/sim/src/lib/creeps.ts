@@ -75,6 +75,8 @@ export function spawnCreep(
     hp: maxHp,
     maxHp,
     speed: def.speed,
+    slowFactor: 1,
+    slowTicks: 0,
     dirX: 0,
     dirY: 0,
     cell: spawnIndex,
@@ -90,14 +92,15 @@ export function spawnCreep(
 }
 
 /**
- * Moves one creep by `speed` cells along the flow field. Returns true when it reached the exit.
+ * Moves one creep by `speed * slowFactor` cells along the flow field. Returns true when it reached
+ * the exit.
  * The creep walks to the center of `target`; on arrival it snaps there, re-reads `next` (so a
  * recomputed flow field takes effect at cell centers only) and spends the leftover movement
  * toward the following cell.
  */
 function moveCreep(lane: SimLane, creep: SimCreep, exitIndex: number): boolean {
   if (creep.cell === exitIndex) return true;
-  let move = creep.speed;
+  let move = creep.speed * creep.slowFactor;
   while (move > 0 && creep.target >= 0) {
     const tx = cellCenterX(lane, creep.target);
     const ty = cellCenterY(lane, creep.target);
@@ -119,6 +122,11 @@ function moveCreep(lane: SimLane, creep: SimCreep, exitIndex: number): boolean {
   }
   aim(lane, creep);
   refreshDistance(lane, creep);
+  // The slow lasts `slowTicks` movement ticks, then the creep is back to full speed.
+  if (creep.slowTicks > 0) {
+    creep.slowTicks -= 1;
+    if (creep.slowTicks === 0) creep.slowFactor = 1;
+  }
   return false;
 }
 

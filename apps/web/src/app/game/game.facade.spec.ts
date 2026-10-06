@@ -2,8 +2,18 @@ import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
 import type { GameBridge, HudSnapshot } from '@td/game';
-import type { Command, RejectReason, TowerTypeId } from '@td/shared';
+import {
+  getTowerLevel,
+  type Command,
+  type RejectReason,
+  type TowerTypeId,
+} from '@td/shared';
 import { GameFacade } from './game.facade';
+
+const HUMAN_OPTIONS: HudSnapshot['buildOptions'] = [
+  { type: 'human-archer', role: 'single', cost: 50, hotkey: 1 },
+  { type: 'human-stormcaller', role: 'pierce', cost: 70, hotkey: 2 },
+];
 
 const snapshot = (overrides: Partial<HudSnapshot> = {}): HudSnapshot => ({
   tick: 100,
@@ -17,6 +27,10 @@ const snapshot = (overrides: Partial<HudSnapshot> = {}): HudSnapshot => ({
   selectedTower: null,
   upgradeCost: null,
   sellRefund: null,
+  faction: 'humans',
+  buildOptions: HUMAN_OPTIONS,
+  selectedLevel: null,
+  nextLevel: null,
   ...overrides,
 });
 
@@ -99,16 +113,33 @@ describe('GameFacade', () => {
       snapshot({
         gold: 70,
         lives: 18,
-        buildMode: 'archer',
+        buildMode: 'human-archer',
         upgradeCost: 60,
         sellRefund: 35,
       }),
     );
     expect(facade.gold()).toBe(70);
     expect(facade.lives()).toBe(18);
-    expect(facade.buildMode()).toBe('archer');
+    expect(facade.buildMode()).toBe('human-archer');
     expect(facade.upgradeCost()).toBe(60);
     expect(facade.sellRefund()).toBe(35);
+  });
+
+  it('maps the faction, build options and selected levels', () => {
+    expect(facade.faction()).toBeNull();
+    expect(facade.buildOptions()).toEqual([]);
+
+    facade.attach(bridge);
+    expect(facade.faction()).toBe('humans');
+    expect(facade.buildOptions()).toBe(HUMAN_OPTIONS);
+    expect(facade.selectedLevel()).toBeNull();
+    expect(facade.nextLevel()).toBeNull();
+
+    const level1 = getTowerLevel('human-archer', 1);
+    const level2 = getTowerLevel('human-archer', 2);
+    bridge.push(snapshot({ selectedLevel: level1, nextLevel: level2 }));
+    expect(facade.selectedLevel()).toBe(level1);
+    expect(facade.nextLevel()).toBe(level2);
   });
 
   it('computes the next-wave countdown in whole seconds', () => {
@@ -135,11 +166,11 @@ describe('GameFacade', () => {
 
   it('toggles build mode for the same type', () => {
     facade.attach(bridge);
-    facade.toggleBuild('archer');
-    expect(bridge.setBuildMode).toHaveBeenLastCalledWith('archer');
+    facade.toggleBuild('human-archer');
+    expect(bridge.setBuildMode).toHaveBeenLastCalledWith('human-archer');
 
-    bridge.push(snapshot({ buildMode: 'archer' }));
-    facade.toggleBuild('archer');
+    bridge.push(snapshot({ buildMode: 'human-archer' }));
+    facade.toggleBuild('human-archer');
     expect(bridge.setBuildMode).toHaveBeenLastCalledWith(null);
 
     facade.cancelBuild();
@@ -176,7 +207,7 @@ describe('GameFacade', () => {
     expect(facade.attached()).toBe(false);
     expect(facade.hud()).toBeNull();
 
-    facade.toggleBuild('archer');
+    facade.toggleBuild('human-archer');
     expect(bridge.setBuildMode).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,55 @@
 import type { GridPos } from '../types.js';
 
+/**
+ * Tower roles. Every faction ships exactly one tower per role, in this order (it drives the build
+ * panel and the hotkeys 1-4). Adding a role = extend this union, add one `AttackDef` variant and one
+ * impact case in the sim; everything else is data.
+ */
+export type TowerRole = 'single' | 'pierce' | 'slow' | 'burst';
+export const TOWER_ROLES: readonly TowerRole[] = [
+  'single',
+  'pierce',
+  'slow',
+  'burst',
+];
+
+/** What happens when a projectile reaches its target. Fully specified per level, so levels can evolve it. */
+export type AttackDef =
+  /** Damages the target only. */
+  | { readonly kind: 'single' }
+  /**
+   * Damages the target, then every creep of the same lane walking up to `behindCells` cells behind
+   * it on the road (`distanceToExit` in ]target, target + behindCells]) for `damage * behindRatio`.
+   */
+  | {
+      readonly kind: 'pierce';
+      readonly behindCells: number;
+      readonly behindRatio: number;
+    }
+  /** Damages the target and multiplies its speed by `factor` for `durationTicks` (strongest factor wins, duration refreshed). */
+  | {
+      readonly kind: 'slow';
+      readonly factor: number;
+      readonly durationTicks: number;
+    }
+  /** Damages the target, then every creep within `splashRadius` cells of it for `damage * splashRatio`. */
+  | {
+      readonly kind: 'burst';
+      readonly splashRadius: number;
+      readonly splashRatio: number;
+    };
+
+export type AttackKind = AttackDef['kind'];
+
+export interface ProjectileDef {
+  /** Key of the projectile visual in the renderer registry (and of the atlas frame later), e.g. "arrow-human". */
+  readonly visual: string;
+  /** Cells per tick. */
+  readonly speed: number;
+  /** Homing projectiles follow their target; non-homing ones fly to the aimed position (not implemented yet, reserved). */
+  readonly homing: boolean;
+}
+
 export interface TowerLevelDef {
   /** Gold to reach this level (level 1 = build cost). */
   readonly cost: number;
@@ -7,15 +57,32 @@ export interface TowerLevelDef {
   /** Range in cells, measured from the footprint center to the creep center. */
   readonly range: number;
   readonly cooldownTicks: number;
-  /** Cells per tick. */
-  readonly projectileSpeed: number;
+  /** Attack behaviour at this level; `kind` must equal the tower `role`. */
+  readonly attack: AttackDef;
+  readonly projectile: ProjectileDef;
+  /** Key of the tower model in the renderer registry (and of the atlas frame later), e.g. "human-archer-2". */
+  readonly model: string;
 }
 
 export interface TowerDef {
   readonly id: string;
-  /** i18n key, e.g. "towers.archer.name". */
+  /** Faction id (key of `factions.json`). */
+  readonly faction: string;
+  readonly role: TowerRole;
+  /** i18n keys, e.g. "towers.human-archer.name" / ".desc". */
   readonly nameKey: string;
+  readonly descKey: string;
   readonly levels: readonly TowerLevelDef[];
+}
+
+export interface FactionDef {
+  readonly id: string;
+  readonly nameKey: string;
+  readonly descKey: string;
+  /** Accent colour (CSS hex) used by the UI and the placeholder renderer palettes. */
+  readonly color: string;
+  /** Tower ids, one per role, in `TOWER_ROLES` order. */
+  readonly towers: readonly string[];
 }
 
 export interface CreepDef {

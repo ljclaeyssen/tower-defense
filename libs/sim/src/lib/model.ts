@@ -1,7 +1,11 @@
 import {
   CREEPS,
-  type CellKind,
+  FACTIONS,
   TOWERS,
+  type AttackDef,
+  type AttackKind,
+  type CellKind,
+  type FactionId,
   type CreepTypeId,
   type EntityId,
   type FlowFieldState,
@@ -42,7 +46,12 @@ export interface SimCreep {
   y: number;
   hp: number;
   readonly maxHp: number;
+  /** Base speed in cells per tick; the effective speed is `speed * slowFactor`. */
   readonly speed: number;
+  /** Speed multiplier of the active slow (1 = none). */
+  slowFactor: number;
+  /** Ticks left on the active slow (0 = none). */
+  slowTicks: number;
   dirX: number;
   dirY: number;
   /** Cell index the creep stands in (the last cell center it reached, or the spawn cell). */
@@ -63,6 +72,11 @@ export interface SimProjectile {
   y: number;
   readonly speed: number;
   readonly damage: number;
+  /** Impact behaviour, copied from the tower level at fire time. */
+  readonly attack: AttackDef;
+  readonly kind: AttackKind;
+  /** Renderer key of the projectile visual. */
+  readonly visual: string;
 }
 
 export interface SpawnEntry {
@@ -95,6 +109,8 @@ export interface SimLane {
 export interface SimPlayer {
   readonly id: PlayerId;
   readonly team: Team;
+  /** Decides which towers the player may build. */
+  readonly faction: FactionId;
   gold: number;
   lives: number;
   income: number;
@@ -136,6 +152,9 @@ export const isKnownTowerType = (id: unknown): id is TowerTypeId =>
 
 export const isKnownCreepType = (id: unknown): id is CreepTypeId =>
   typeof id === 'string' && Object.prototype.hasOwnProperty.call(CREEPS, id);
+
+export const isKnownFaction = (id: unknown): id is FactionId =>
+  typeof id === 'string' && Object.prototype.hasOwnProperty.call(FACTIONS, id);
 
 /** Recomputes the lane flow field (map blocks + tower footprints are solid). */
 export function recomputeFlowField(lane: SimLane): void {

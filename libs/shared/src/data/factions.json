@@ -1,0 +1,57 @@
+{
+  "humans": {
+    "id": "humans",
+    "nameKey": "factions.humans.name",
+    "descKey": "factions.humans.desc",
+    "color": "#d9b45a",
+    "towers": [
+      "human-archer",
+      "human-stormcaller",
+      "human-frostmage",
+      "human-cannon"
+    ]
+  },
+  "elves": {
+    "id": "elves",
+    "nameKey": "factions.elves.name",
+    "descKey": "factions.elves.desc",
+    "color": "#6fcf7a",
+    "towers": ["elf-ranger", "elf-windsinger", "elf-moonshrine", "elf-ballista"]
+  },
+  "orcs": {
+    "id": "orcs",
+    "nameKey": "factions.orcs.name",
+    "descKey": "factions.orcs.desc",
+    "color": "#d9663c",
+    "towers": [
+      "orc-spearthrower",
+      "orc-dusttotem",
+      "orc-icetroll",
+      "orc-catapult"
+    ]
+  },
+  "undead": {
+    "id": "undead",
+    "nameKey": "factions.undead.name",
+    "descKey": "factions.undead.desc",
+    "color": "#9b6fd9",
+    "towers": [
+      "undead-skeletonarcher",
+      "undead-banshee",
+      "undead-lich",
+      "undead-plaguehurler"
+    ]
+  },
+  "dwarves": {
+    "id": "dwarves",
+    "nameKey": "factions.dwarves.name",
+    "descKey": "factions.dwarves.desc",
+    "color": "#c78a3b",
+    "towers": [
+      "dwarf-rifletower",
+      "dwarf-teslacoil",
+      "dwarf-cryosprayer",
+      "dwarf-mortar"
+    ]
+  }
+}

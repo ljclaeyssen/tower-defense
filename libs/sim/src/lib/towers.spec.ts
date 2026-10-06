@@ -12,7 +12,7 @@ import {
   stepN,
 } from './testing.js';
 
-const LEVELS = TOWERS.archer.levels;
+const LEVELS = TOWERS['human-archer'].levels;
 const cost = (level: number) => LEVELS[level - 1]?.cost ?? NaN;
 const gold = (game: Game, playerId = 0) =>
   game.getState().players[playerId]?.gold ?? NaN;
@@ -167,7 +167,7 @@ describe('projectiles', () => {
 
     // Reference kinematics: each tick the projectile moves 0.6 toward the creep's current
     // position (phase 3), then the creep moves 0.1 along +x (phase 4).
-    const speed = LEVELS[0]?.projectileSpeed ?? 0;
+    const speed = LEVELS[0]?.projectile.speed ?? 0;
     let px = 3;
     let py = 1;
     let cx = 0.5;
@@ -220,7 +220,7 @@ describe('projectiles', () => {
     expect(creepEvents.at(-1)).toMatchObject({
       type: 'CreepKilled',
       playerId: 0,
-      bounty: 5,
+      bounty: CREEPS.beetle.bounty,
     });
     expect(game.getState().lanes[0]?.creeps).toHaveLength(0);
   });

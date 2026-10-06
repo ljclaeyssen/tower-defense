@@ -49,7 +49,7 @@ describe('placement validation', () => {
       validatePlacement(
         game.getState(),
         0,
-        'archer',
+        'human-archer',
         { x: 3, y: 2 },
         { checkGold: false },
       ),
@@ -59,7 +59,7 @@ describe('placement validation', () => {
   it('respects the reason order (first failing reason wins)', () => {
     const game = createGame(pveConfig(OPEN_MAP), 1);
     const s = () => game.getState();
-    expect(validatePlacement(s(), 3, 'archer', { x: 7, y: 0 })).toBe(
+    expect(validatePlacement(s(), 3, 'human-archer', { x: 7, y: 0 })).toBe(
       'UnknownPlayer',
     );
     expect(
@@ -69,18 +69,18 @@ describe('placement validation', () => {
       validatePlacement(s(), 0, 'toString' as TowerTypeId, { x: 2, y: 0 }),
     ).toBe('UnknownType');
     // Out of bounds AND covering the spawn -> OutOfBounds.
-    expect(validatePlacement(s(), 0, 'archer', { x: -1, y: 1 })).toBe(
+    expect(validatePlacement(s(), 0, 'human-archer', { x: -1, y: 1 })).toBe(
       'OutOfBounds',
     );
     expect(place(game, 1, 0).ok).toBe(true);
     expect(place(game, 3, 0).ok).toBe(true);
     expect(place(game, 5, 2).ok).toBe(true);
     // Road cell AND overlapping a tower AND no gold -> CellBlocked.
-    expect(validatePlacement(s(), 0, 'archer', { x: 5, y: 3 })).toBe(
+    expect(validatePlacement(s(), 0, 'human-archer', { x: 5, y: 3 })).toBe(
       'CellBlocked',
     );
     // Overlapping a tower AND no gold -> OverlapsTower.
-    expect(validatePlacement(s(), 0, 'archer', { x: 2, y: 0 })).toBe(
+    expect(validatePlacement(s(), 0, 'human-archer', { x: 2, y: 0 })).toBe(
       'OverlapsTower',
     );
   });
@@ -100,7 +100,7 @@ describe('placement validation', () => {
     const tower = {
       id: 1,
       playerId: 0,
-      type: 'archer',
+      type: 'human-archer',
       level: 1,
       pos: { x: 2, y: 0 },
       cooldown: 0,
@@ -118,7 +118,7 @@ describe('placement validation', () => {
     const hash = game.hash();
     const command = {
       type: 'PlaceTower',
-      towerType: 'archer',
+      towerType: 'human-archer',
       pos: { x: 7, y: 0 },
     } as const;
     expect(game.apply(command, 0)).toEqual({
@@ -163,17 +163,17 @@ describe('overlapping creeps', () => {
     expect(creep?.dir).toEqual({ x: 1, y: 0 });
     // Current cell (2,2) only.
     expect(
-      validatePlacement(game.getState(), 0, 'archer', { x: 1, y: 1 }),
+      validatePlacement(game.getState(), 0, 'human-archer', { x: 1, y: 1 }),
     ).toBe('OverlapsCreep');
     expect(place(game, 1, 1)).toEqual({ ok: false, reason: 'OverlapsCreep' });
     // Target cell (3,2) only.
     expect(
-      validatePlacement(game.getState(), 0, 'archer', { x: 3, y: 1 }),
+      validatePlacement(game.getState(), 0, 'human-archer', { x: 3, y: 1 }),
     ).toBe('OverlapsCreep');
     expect(place(game, 3, 1)).toEqual({ ok: false, reason: 'OverlapsCreep' });
     // One cell further is fine.
     expect(
-      validatePlacement(game.getState(), 0, 'archer', { x: 4, y: 1 }),
+      validatePlacement(game.getState(), 0, 'human-archer', { x: 4, y: 1 }),
     ).toBeNull();
     expect(place(game, 4, 1).ok).toBe(true);
   });
@@ -191,10 +191,15 @@ describe('overlapping creeps', () => {
       };
       for (let y = -1; y < height; y++) {
         for (let x = -1; x < width; x++) {
-          const expected = validatePlacement(game.getState(), 0, 'archer', {
-            x,
-            y,
-          });
+          const expected = validatePlacement(
+            game.getState(),
+            0,
+            'human-archer',
+            {
+              x,
+              y,
+            },
+          );
           const result = place(game, x, y);
           expect(result).toEqual(
             expected === null ? { ok: true } : { ok: false, reason: expected },
@@ -245,7 +250,7 @@ describe('overlapping creeps', () => {
     expect(place(game, 1, 1).ok).toBe(true);
     // Cutting it ahead as well would trap the creep in a pocket.
     expect(
-      validatePlacement(game.getState(), 0, 'archer', { x: 6, y: 1 }),
+      validatePlacement(game.getState(), 0, 'human-archer', { x: 6, y: 1 }),
     ).toBe('BlocksPath');
     expect(place(game, 6, 1)).toEqual({ ok: false, reason: 'BlocksPath' });
     // Without the tower behind it, the creep can still walk back: accepted.

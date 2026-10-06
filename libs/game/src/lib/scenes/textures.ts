@@ -1,10 +1,13 @@
 import * as Phaser from 'phaser';
-import { TOWER_FOOTPRINT, TOWER_TYPE_IDS, getTowerDef } from '@td/shared';
-import type { Team, TowerTypeId } from '@td/shared';
+import { TOWER_FOOTPRINT } from '@td/shared';
+import type { Team } from '@td/shared';
 import { TILE_H, TILE_W } from '../iso.js';
 import { GROUND_KINDS } from '../ground.js';
 import type { GroundKind } from '../ground.js';
-import { nextPowerOfTwo } from '../render-math.js';
+import { mixColor, nextPowerOfTwo } from '../render-math.js';
+import { resolveModel } from '../visuals/model-registry.js';
+import type { ModelDescriptor } from '../visuals/model-registry.js';
+import { resolveProjectile } from '../visuals/projectile-registry.js';
 
 /**
  * Procedural placeholder art: every texture is drawn once with a Graphics object and baked with
@@ -50,7 +53,6 @@ export const groundTextureKey = (kind: GroundKind): string => `ground-${kind}`;
 export const GROUND_FLASH_KEY = 'ground-flash';
 export const CREEP_BODY_KEY = 'creep-body';
 export const CREEP_SHADOW_KEY = 'creep-shadow';
-export const PROJECTILE_KEY = 'projectile';
 export const PARTICLE_KEY = 'particle';
 
 export const TEAM_COLORS: Record<Team, number> = {
@@ -87,24 +89,14 @@ const PATH_SPECKS: Record<
   ],
 };
 
-/** Stone palette per tower type: top (lightest), left (lighter) and right (darker) faces. */
-const TOWER_PALETTES: Partial<
-  Record<TowerTypeId, { top: number; left: number; right: number }>
-> = {
-  archer: { top: 0xe2dccb, left: 0xb9b19a, right: 0x857d68 },
-};
-const DEFAULT_PALETTE = { top: 0xd4d4d8, left: 0xa1a1aa, right: 0x71717a };
-
-/** Pixel height of the tower prism for a 1-based level. */
-export const towerHeightPx = (level: number): number => 10 + 8 * level;
-
 /** Half extents of the prism base, slightly inset in the 2x2 footprint diamond. */
 const TOWER_HALF_W = (TILE_W * TOWER_FOOTPRINT) / 2 - 6;
-const TOWER_HALF_H = TOWER_HALF_W / 2;
+/** Free space above the top face center in tower textures (orbs, crystals). */
+const TOWER_HEADROOM = TILE_H;
 
 export interface TowerTextureInfo {
   readonly key: string;
-  /** Logical size of the drawn prism area (for bounds, hit tests and occlusion). */
+  /** Logical size of the drawn model area (for bounds, hit tests and occlusion). */
   readonly width: number;
   readonly height: number;
   /** Anchor (footprint center) as a ratio of the logical content area. */
@@ -115,18 +107,20 @@ export interface TowerTextureInfo {
   readonly displayOriginY: number;
 }
 
-export function towerTexture(
-  type: TowerTypeId,
-  level: number,
-  team: Team,
-): TowerTextureInfo {
-  const h = towerHeightPx(level);
+export const towerTextureKey = (modelId: string, team: Team): string =>
+  `tower-${modelId}-${team}`;
+export const projectileTextureKey = (visualId: string): string =>
+  `projectile-${visualId}`;
+
+/** Layout of the tower texture of `modelId` (the texture itself is baked by `ensureTowerTexture`). */
+export function towerTexture(modelId: string, team: Team): TowerTextureInfo {
+  const h = resolveModel(modelId).heightPx;
   const width = TILE_W * TOWER_FOOTPRINT;
-  const height = h + TILE_H * TOWER_FOOTPRINT;
-  const anchorY = h + (TILE_H * TOWER_FOOTPRINT) / 2;
+  const anchorY = TOWER_HEADROOM + h;
+  const height = anchorY + (TILE_H * TOWER_FOOTPRINT) / 2;
   const layout = bakedLayout(width, height);
   return {
-    key: `tower-${type}-${level}-${team}`,
+    key: towerTextureKey(modelId, team),
     width,
     height,
     originX: 0.5,
@@ -137,7 +131,58 @@ export function towerTexture(
   };
 }
 
-/** Generates every texture the scenes need (no-op for textures that already exist). */
+/** Bakes the tower texture of (`modelId`, `team`) on first use and returns its layout. */
+export function ensureTowerTexture(
+  scene: Phaser.Scene,
+  modelId: string,
+  team: Team,
+): TowerTextureInfo {
+  const info = towerTexture(modelId, team);
+  if (!scene.textures.exists(info.key)) {
+    withGraphics(scene, (g) =>
+      bake(scene, g, info.key, info.width, info.height, () =>
+        drawTower(g, resolveModel(modelId), info, team),
+      ),
+    );
+  }
+  return info;
+}
+
+/** Logical size of projectile textures (square, centered on the projectile). */
+const PROJECTILE_SIZE = 12;
+
+/** Bakes the projectile texture of `visualId` on first use and returns its key. */
+export function ensureProjectileTexture(
+  scene: Phaser.Scene,
+  visualId: string,
+): string {
+  const key = projectileTextureKey(visualId);
+  if (!scene.textures.exists(key)) {
+    withGraphics(scene, (g) =>
+      bake(scene, g, key, PROJECTILE_SIZE, PROJECTILE_SIZE, () =>
+        drawProjectile(g, visualId),
+      ),
+    );
+  }
+  return key;
+}
+
+function withGraphics(
+  scene: Phaser.Scene,
+  fn: (g: Phaser.GameObjects.Graphics) => void,
+): void {
+  const g = scene.make.graphics({}, false);
+  try {
+    fn(g);
+  } finally {
+    g.destroy();
+  }
+}
+
+/**
+ * Generates the shared textures (ground, creeps, particles). Towers and projectiles are baked lazily
+ * by `ensureTowerTexture` / `ensureProjectileTexture`. No-op for textures that already exist.
+ */
 export function ensureTextures(scene: Phaser.Scene): void {
   const g = scene.make.graphics({}, false);
   try {
@@ -150,17 +195,6 @@ export function ensureTextures(scene: Phaser.Scene): void {
       diamondPath(g, TILE_W / 2, TILE_H / 2, TILE_W / 2, TILE_H / 2);
       g.fillStyle(0xffffff, 1).fillPath();
     });
-    for (const type of TOWER_TYPE_IDS) {
-      const levels = getTowerDef(type).levels.length;
-      for (let level = 1; level <= levels; level++) {
-        for (const team of ['blue', 'red'] as const) {
-          const info = towerTexture(type, level, team);
-          bake(scene, g, info.key, info.width, info.height, () =>
-            drawTower(g, type, level, team),
-          );
-        }
-      }
-    }
     bake(scene, g, CREEP_BODY_KEY, 14, 11, () => {
       g.fillStyle(CREEP_COLOR, 1).fillEllipse(7, 5.5, 12, 9);
       g.fillStyle(0xffffff, 0.18).fillEllipse(6, 4, 6, 3);
@@ -168,9 +202,6 @@ export function ensureTextures(scene: Phaser.Scene): void {
     });
     bake(scene, g, CREEP_SHADOW_KEY, 14, 6, () => {
       g.fillStyle(0x000000, 1).fillEllipse(7, 3, 14, 6);
-    });
-    bake(scene, g, PROJECTILE_KEY, 6, 6, () => {
-      g.fillStyle(0xfff3c4, 1).fillCircle(3, 3, 2.5);
     });
     bake(scene, g, PARTICLE_KEY, 4, 4, () => {
       g.fillStyle(0xffffff, 1).fillCircle(2, 2, 2);
@@ -260,61 +291,257 @@ function polygon(
   g.fillPath();
 }
 
+type Point = readonly [number, number];
+
 function drawTower(
   g: Phaser.GameObjects.Graphics,
-  type: TowerTypeId,
-  level: number,
+  model: ModelDescriptor,
+  info: TowerTextureInfo,
   team: Team,
 ): void {
-  const palette = TOWER_PALETTES[type] ?? DEFAULT_PALETTE;
-  const info = towerTexture(type, level, team);
-  const h = towerHeightPx(level);
-  const hw = TOWER_HALF_W;
-  const hh = TOWER_HALF_H;
   const cx = info.width / 2;
   const cy = info.height * info.originY; // footprint center (ground)
-  const ty = cy - h; // center of the top face
+  switch (model.shape) {
+    case 'spire':
+      drawSpire(g, model, cx, cy, team);
+      break;
+    case 'crystal':
+      drawCrystal(g, model, cx, cy, team);
+      break;
+    case 'mortar':
+      drawMortar(g, model, cx, cy, team);
+      break;
+    default:
+      drawPrism(g, model, cx, cy, team);
+      break;
+  }
+}
 
-  // Left face (lighter), right face (darker), top (lightest).
+/**
+ * Iso block, optionally tapered: base diamond of half extents (hw, hw / 2) on the ground at (cx, cy),
+ * top diamond scaled by `taper` at height h. Left face lit, right face shaded, top lightest.
+ * Returns the top face center y and half extents.
+ */
+function block(
+  g: Phaser.GameObjects.Graphics,
+  model: ModelDescriptor,
+  cx: number,
+  cy: number,
+  hw: number,
+  h: number,
+  taper = 1,
+): { ty: number; tw: number; th: number } {
+  const { palette } = model;
+  const hh = hw / 2;
+  const tw = hw * taper;
+  const th = hh * taper;
+  const ty = cy - h;
   polygon(g, palette.left, [
-    [cx - hw, ty],
-    [cx, ty + hh],
+    [cx - tw, ty],
+    [cx, ty + th],
     [cx, cy + hh],
     [cx - hw, cy],
   ]);
   polygon(g, palette.right, [
-    [cx, ty + hh],
-    [cx + hw, ty],
+    [cx, ty + th],
+    [cx + tw, ty],
     [cx + hw, cy],
     [cx, cy + hh],
   ]);
   polygon(g, palette.top, [
-    [cx, ty - hh],
-    [cx + hw, ty],
-    [cx, ty + hh],
-    [cx - hw, ty],
+    [cx, ty - th],
+    [cx + tw, ty],
+    [cx, ty + th],
+    [cx - tw, ty],
   ]);
-
-  // Masonry lines on the side faces, one per level.
-  g.lineStyle(1, 0x000000, 0.15);
-  for (let i = 1; i <= level; i++) {
-    const y = cy - (h * i) / (level + 1);
-    g.lineBetween(cx - hw, y, cx, y + hh);
-    g.lineBetween(cx, y + hh, cx + hw, y);
-  }
-
-  // Team accent: an inner diamond on the top, larger with the level.
-  const accent = 0.35 + 0.1 * level;
-  diamondPath(g, cx, ty, hw * accent, hh * accent);
-  g.fillStyle(TEAM_COLORS[team], 1).fillPath();
-
-  // Edges.
-  g.lineStyle(1, 0x1f1b14, 0.6);
-  diamondPath(g, cx, ty, hw, hh);
+  g.lineStyle(1, 0x1f1b14, 0.55);
+  diamondPath(g, cx, ty, tw, th);
   g.strokePath();
-  g.lineBetween(cx - hw, ty, cx - hw, cy);
-  g.lineBetween(cx + hw, ty, cx + hw, cy);
-  g.lineBetween(cx, ty + hh, cx, cy + hh);
+  g.lineBetween(cx - tw, ty, cx - hw, cy);
+  g.lineBetween(cx + tw, ty, cx + hw, cy);
+  g.lineBetween(cx, ty + th, cx, cy + hh);
   g.lineBetween(cx - hw, cy, cx, cy + hh);
   g.lineBetween(cx, cy + hh, cx + hw, cy);
+  return { ty, tw, th };
+}
+
+/** Team colour as a thin band around the side faces, just below the top (faction palette dominates). */
+function teamBand(
+  g: Phaser.GameObjects.Graphics,
+  cx: number,
+  ty: number,
+  tw: number,
+  th: number,
+  team: Team,
+): void {
+  const y0 = ty + 2;
+  const y1 = ty + 4;
+  const faces: Point[][] = [
+    [
+      [cx - tw, y0],
+      [cx, y0 + th],
+      [cx, y1 + th],
+      [cx - tw, y1],
+    ],
+    [
+      [cx, y0 + th],
+      [cx + tw, y0],
+      [cx + tw, y1],
+      [cx, y1 + th],
+    ],
+  ];
+  for (const face of faces) polygon(g, TEAM_COLORS[team], face);
+}
+
+function drawPrism(
+  g: Phaser.GameObjects.Graphics,
+  model: ModelDescriptor,
+  cx: number,
+  cy: number,
+  team: Team,
+): void {
+  const h = model.heightPx;
+  const hw = TOWER_HALF_W;
+  const { ty, tw, th } = block(g, model, cx, cy, hw, h);
+  // Masonry courses.
+  g.lineStyle(1, 0x000000, 0.15);
+  const courses = Math.max(1, Math.round(h / 10));
+  for (let i = 1; i <= courses; i++) {
+    const y = cy - (h * i) / (courses + 1);
+    g.lineBetween(cx - hw, y, cx, y + hw / 2);
+    g.lineBetween(cx, y + hw / 2, cx + hw, y);
+  }
+  teamBand(g, cx, ty, tw, th, team);
+  // Faction inlay on the roof.
+  diamondPath(g, cx, ty, tw * 0.45, th * 0.45);
+  g.fillStyle(model.palette.accent, 1).fillPath();
+}
+
+function drawSpire(
+  g: Phaser.GameObjects.Graphics,
+  model: ModelDescriptor,
+  cx: number,
+  cy: number,
+  team: Team,
+): void {
+  const { ty, tw, th } = block(
+    g,
+    model,
+    cx,
+    cy,
+    TOWER_HALF_W - 8,
+    model.heightPx,
+    0.55,
+  );
+  teamBand(g, cx, ty, tw, th, team);
+  // Glowing orb in the faction accent.
+  const oy = ty - 7;
+  g.fillStyle(model.palette.accent, 0.3).fillCircle(cx, oy, 6);
+  g.fillStyle(model.palette.accent, 1).fillCircle(cx, oy, 4);
+  g.fillStyle(0xffffff, 0.75).fillCircle(cx - 1.2, oy - 1.2, 1.5);
+}
+
+function drawCrystal(
+  g: Phaser.GameObjects.Graphics,
+  model: ModelDescriptor,
+  cx: number,
+  cy: number,
+  team: Team,
+): void {
+  const { ty, tw, th } = block(
+    g,
+    model,
+    cx,
+    cy,
+    TOWER_HALF_W - 3,
+    model.heightPx,
+  );
+  teamBand(g, cx, ty, tw, th, team);
+  // Faceted ice crystal, slightly tinted by the faction palette.
+  const ice = mixColor(0xbfe8ff, model.palette.top, 0.25);
+  const iceDark = mixColor(0x5aa9e0, model.palette.right, 0.25);
+  const top = ty - 15;
+  const mid = ty - 4;
+  const w = 7;
+  polygon(g, ice, [
+    [cx, top],
+    [cx, ty + 3],
+    [cx - w, mid],
+  ]);
+  polygon(g, iceDark, [
+    [cx, top],
+    [cx + w, mid],
+    [cx, ty + 3],
+  ]);
+  g.lineStyle(0.75, 0x1d4e73, 0.8);
+  g.beginPath();
+  g.moveTo(cx, top);
+  g.lineTo(cx + w, mid);
+  g.lineTo(cx, ty + 3);
+  g.lineTo(cx - w, mid);
+  g.closePath();
+  g.strokePath();
+  g.fillStyle(0xffffff, 0.7).fillCircle(cx - 2, mid - 3, 1);
+}
+
+function drawMortar(
+  g: Phaser.GameObjects.Graphics,
+  model: ModelDescriptor,
+  cx: number,
+  cy: number,
+  team: Team,
+): void {
+  const { ty, tw, th } = block(
+    g,
+    model,
+    cx,
+    cy,
+    TOWER_HALF_W + 2,
+    model.heightPx,
+  );
+  teamBand(g, cx, ty, tw, th, team);
+  // Barrel: dark iso circle with an accent rim.
+  g.fillStyle(model.palette.accent, 1).fillEllipse(cx, ty, 20, 10);
+  g.fillStyle(0x2a2724, 1).fillEllipse(cx, ty, 16, 8);
+  g.fillStyle(0x0e0d0c, 1).fillEllipse(cx, ty + 0.5, 10, 5);
+  g.lineStyle(0.75, 0x000000, 0.6).strokeEllipse(cx, ty, 20, 10);
+}
+
+function drawProjectile(
+  g: Phaser.GameObjects.Graphics,
+  visualId: string,
+): void {
+  const { shape, color, radiusPx: r } = resolveProjectile(visualId);
+  const c = PROJECTILE_SIZE / 2;
+  switch (shape) {
+    case 'arrow':
+      // Points to +x; the scene rotates it along the flight direction.
+      g.fillStyle(color, 1).fillRect(c - r, c - 0.5, r * 2 - 1.5, 1);
+      polygon(g, color, [
+        [c + r, c],
+        [c + r - 2.5, c - 1.5],
+        [c + r - 2.5, c + 1.5],
+      ]);
+      g.fillStyle(0xffffff, 0.8).fillRect(c - r, c - 1.2, 1.5, 2.4);
+      break;
+    case 'swirl':
+      g.fillStyle(color, 0.25).fillCircle(c, c, r + 1.5);
+      g.lineStyle(1, color, 1).strokeCircle(c, c, r);
+      g.fillStyle(0xffffff, 1).fillCircle(c, c, r * 0.4);
+      break;
+    case 'shard':
+      diamondPath(g, c, c, r * 0.7, r * 1.3);
+      g.fillStyle(color, 1).fillPath();
+      g.lineStyle(0.5, 0xffffff, 0.9).strokePath();
+      break;
+    default:
+      g.fillStyle(color, 1).fillCircle(c, c, r);
+      g.fillStyle(0xffffff, 0.35).fillCircle(
+        c - r * 0.35,
+        c - r * 0.35,
+        r * 0.4,
+      );
+      g.lineStyle(0.5, 0x000000, 0.6).strokeCircle(c, c, r);
+      break;
+  }
 }

@@ -27,6 +27,8 @@ export interface PlacementContext {
     readonly exit: GridPos;
   };
   readonly gold: number;
+  /** Faction of the building player: only its towers may be placed. */
+  readonly faction: string;
   /** Lazily evaluated: every cell a living creep stands in or is heading to. */
   readonly creepCells: () => readonly number[];
 }
@@ -34,7 +36,7 @@ export interface PlacementContext {
 /**
  * Shared placement rules, used both by `Game.apply` (internal model) and by the public
  * `validatePlacement` (snapshot). The first failing reason wins, in this order:
- * GameNotRunning, UnknownType, OutOfBounds, CellBlocked, OverlapsTower, OverlapsCreep, BlocksPath,
+ * GameNotRunning, UnknownType, WrongFaction, OutOfBounds, CellBlocked, OverlapsTower, OverlapsCreep, BlocksPath,
  * NotEnoughGold. (UnknownPlayer is checked by the callers.)
  */
 export function checkPlacement(
@@ -46,6 +48,7 @@ export function checkPlacement(
   const { lane } = ctx;
   if (ctx.phase !== 'running') return 'GameNotRunning';
   if (!isKnownTowerType(towerType)) return 'UnknownType';
+  if (getTowerDef(towerType).faction !== ctx.faction) return 'WrongFaction';
   if (!pos || typeof pos !== 'object') return 'OutOfBounds';
 
   const cells = footprintCells(pos);
@@ -148,6 +151,7 @@ export function validatePlacement(
       phase: state.phase,
       lane,
       gold: player.gold,
+      faction: player.faction,
       creepCells: () =>
         lane.creeps.flatMap((c) => creepCellsFromSnapshot(lane, c)),
     },
