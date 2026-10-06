@@ -97,6 +97,8 @@ export interface LaunchGameOptions {
   /** DOM element that will host the Phaser canvas (filled to its size, resized with it). */
   readonly parent: HTMLElement;
   readonly session: GameSession;
+  /** Base URL of the art atlas (`atlas@2x.png/json`); default `/assets/`. Missing art falls back to placeholders. */
+  readonly assetsBaseUrl?: string;
 }
 
 export interface LaunchedGame {
@@ -107,6 +109,8 @@ export interface LaunchedGame {
 
 export interface LaunchGalleryOptions {
   readonly parent: HTMLElement;
+  /** Base URL of the art atlas and `manifest.json`; default `/assets/`. */
+  readonly assetsBaseUrl?: string;
 }
 
 export interface LaunchedGallery {

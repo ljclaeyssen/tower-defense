@@ -37,6 +37,7 @@ import {
 import type { Rect } from '../render-math.js';
 import { getPixelRatio } from '../display.js';
 import { groundKindAt } from '../ground.js';
+import type { GroundKind } from '../ground.js';
 import {
   CameraController,
   MAX_ZOOM,
@@ -44,17 +45,31 @@ import {
 } from './camera-controller.js';
 import type { WorldBounds } from './camera-controller.js';
 import {
-  CREEP_BODY_KEY,
   CREEP_COLOR,
-  CREEP_SHADOW_KEY,
-  GROUND_FLASH_KEY,
-  PARTICLE_KEY,
-  TEXTURE_DISPLAY_SCALE,
+  PARTICLE_SIZE,
+  applySpriteRef,
+  creepSkin,
   ensureProjectileTexture,
   ensureTextures,
   ensureTowerTexture,
-  groundTextureKey,
+  groundFlashRef,
+  groundRef,
+  particleRef,
 } from './textures.js';
+import type { CreepSkin, SpriteRef } from './textures.js';
+import { installArt, queueArt } from './art-loader.js';
+import { DEFAULT_ASSETS_BASE_URL } from '../visuals/atlas.js';
+import {
+  CREEP_BODY_Y,
+  CREEP_HP_BAR_Y,
+  CREEP_SHADOW_Y,
+  FLAT_SCALE_Y,
+  advanceWalk,
+  createWalkState,
+  creepExtents,
+  groundAngle,
+} from '../visuals/creep-motion.js';
+import type { CreepExtents, WalkState } from '../visuals/creep-motion.js';
 import { modelIdOf } from '../visuals/model-registry.js';
 import { resolveProjectile } from '../visuals/projectile-registry.js';
 import type { ProjectileDescriptor } from '../visuals/projectile-registry.js';
@@ -74,6 +89,8 @@ export const GAME_SCENE_KEY = 'td-game';
 export interface GameSceneData {
   readonly session: GameSession;
   readonly bridge: LocalGameBridge;
+  /** Base URL of the art atlas and manifest (default `/assets/`). */
+  readonly assetsBaseUrl?: string;
 }
 
 // Depth layers. Entities use the screen y of their anchor (a few hundred px at most) as depth.
@@ -146,9 +163,6 @@ const FLOW_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: '#e5e7eb',
 };
 
-/** Shorthand: displays a supersampled baked texture at its logical size. */
-const D = TEXTURE_DISPLAY_SCALE;
-
 /**
  * Text is rasterized at device pixel ratio x the maximum user zoom, so world-space labels stay sharp
  * up to MAX_ZOOM on HiDPI screens.
@@ -166,6 +180,8 @@ interface TowerView {
   /** Model key currently displayed (re-baked/re-textured when the level changes). */
   modelId: string;
   team: Team;
+  /** Display scale of the current sprite (the fire squash is relative to it). */
+  scale: number;
   depth: number;
   /** Screen bounds of the sprite, for hit testing and occlusion. */
   readonly bounds: Rect;
@@ -174,7 +190,16 @@ interface TowerView {
 
 interface CreepView {
   readonly container: Phaser.GameObjects.Container;
+  /** Rotated in the ground plane (walk cycles) inside a container squashed like the ground. */
   readonly body: Phaser.GameObjects.Image;
+  readonly skin: CreepSkin;
+  /** Odometer driving the walk cycle. */
+  readonly walk: WalkState;
+  walkFrame: number;
+  /** Ground-plane rotation currently applied to the body. */
+  angle: number;
+  /** Screen extents relative to the ground position (occlusion). */
+  readonly extents: CreepExtents;
   readonly hpFill: Phaser.GameObjects.Rectangle;
   hpRatio: number;
   /** Scene time at which the current fill flash ends (0 = no flash). */
@@ -206,7 +231,7 @@ interface ChainBuild {
 /** A pierce back-travel animation in progress: hop k goes from ids[k - 1] to ids[k]. */
 interface ChainAnim {
   desc: ProjectileDescriptor;
-  textureKey: string;
+  ref: SpriteRef;
   readonly ids: EntityId[];
   start: number;
   hopMs: number;
@@ -245,6 +270,11 @@ export class GameScene extends Phaser.Scene {
   private session!: GameSession;
   private bridge!: LocalGameBridge;
   private playerId: PlayerId = 0;
+  private assetsBaseUrl = DEFAULT_ASSETS_BASE_URL;
+  /** Particle sprite and the scale that displays it PARTICLE_SIZE px wide. */
+  private particle!: SpriteRef;
+  private particleScale = 1;
+  private readonly creepSkins = new Map<string, CreepSkin>();
 
   private readonly towers = new Map<EntityId, TowerView>();
   private readonly creeps = new Map<EntityId, CreepView>();
@@ -327,6 +357,7 @@ export class GameScene extends Phaser.Scene {
   private readonly tmpPrev = { x: 0, y: 0 };
   private readonly tmpFrom = { x: 0, y: 0 };
   private readonly tmpTo = { x: 0, y: 0 };
+  private readonly tmpDir = { x: 0, y: 0 };
 
   constructor() {
     super({ key: GAME_SCENE_KEY });
@@ -336,11 +367,21 @@ export class GameScene extends Phaser.Scene {
     this.session = data.session;
     this.bridge = data.bridge;
     this.playerId = data.session.playerId;
+    this.assetsBaseUrl = data.assetsBaseUrl ?? DEFAULT_ASSETS_BASE_URL;
     this.cleanedUp = false;
   }
 
+  /** Loads the art atlas (a missing atlas only means procedural placeholders). */
+  preload(): void {
+    queueArt(this, this.assetsBaseUrl, { manifest: false });
+  }
+
   create(): void {
+    installArt(this);
     ensureTextures(this);
+    this.particle = particleRef(this);
+    this.particleScale =
+      (this.particle.displayScale * PARTICLE_SIZE) / this.particle.width;
 
     // The footprint ghost is drawn above everything so it stays readable over existing towers.
     this.ghost = this.add
@@ -415,13 +456,21 @@ export class GameScene extends Phaser.Scene {
 
   private buildGround(lane: LaneState): void {
     this.groundBuilt = true;
+    const refs = new Map<GroundKind, SpriteRef>();
     for (let y = 0; y < lane.height; y++) {
       for (let x = 0; x < lane.width; x++) {
+        const kind = groundKindAt(lane, x, y);
+        let ref = refs.get(kind);
+        if (!ref) {
+          ref = groundRef(this, kind);
+          refs.set(kind, ref);
+        }
         const p = gridToScreen(x + 0.5, y + 0.5, this.tmpScreen);
-        this.add
-          .image(p.x, p.y, groundTextureKey(groundKindAt(lane, x, y)))
-          .setScale(D)
-          .setDepth(DEPTH_GROUND);
+        // Back to front, so tile overhangs overlap correctly.
+        applySpriteRef(
+          this.add.image(p.x, p.y, ref.key, ref.frame),
+          ref,
+        ).setDepth(DEPTH_GROUND + p.y);
       }
     }
     const exit = gridToScreen(
@@ -429,9 +478,11 @@ export class GameScene extends Phaser.Scene {
       lane.exit.y + 0.5,
       this.tmpScreen,
     );
-    this.exitFlash = this.add
-      .image(exit.x, exit.y, GROUND_FLASH_KEY)
-      .setScale(D)
+    const flash = groundFlashRef(this);
+    this.exitFlash = applySpriteRef(
+      this.add.image(exit.x, exit.y, flash.key, flash.frame),
+      flash,
+    )
       .setTint(0xff2a2a)
       .setAlpha(0)
       .setDepth(DEPTH_GROUND_OVERLAY);
@@ -495,11 +546,12 @@ export class GameScene extends Phaser.Scene {
           level: 0,
           modelId: '',
           team,
+          scale: 1,
           depth: anchor.y,
           bounds: { left: 0, top: 0, right: 0, bottom: 0 },
           seen: 0,
         };
-        sprite.setScale(D).setDepth(anchor.y);
+        sprite.setDepth(anchor.y);
         this.towers.set(tower.id, view);
       }
       view.type = tower.type;
@@ -509,9 +561,9 @@ export class GameScene extends Phaser.Scene {
         view.modelId = modelId;
         view.team = team;
         const info = ensureTowerTexture(this, modelId, team);
-        view.sprite
-          .setTexture(info.key)
-          .setOrigin(info.displayOriginX, info.displayOriginY);
+        this.tweens.killTweensOf(view.sprite);
+        applySpriteRef(view.sprite, info);
+        view.scale = info.displayScale;
         const { x, y } = view.sprite;
         view.bounds.left = x - info.width * info.originX;
         view.bounds.right = view.bounds.left + info.width;
@@ -529,22 +581,45 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createCreepView(): CreepView {
-    const shadow = this.add
-      .image(0, 1, CREEP_SHADOW_KEY)
-      .setScale(D)
-      .setAlpha(0.35);
-    const body = this.add.image(0, -4, CREEP_BODY_KEY).setScale(D);
+  private skinOf(type: string): CreepSkin {
+    let skin = this.creepSkins.get(type);
+    if (!skin) {
+      skin = creepSkin(this, type);
+      this.creepSkins.set(type, skin);
+    }
+    return skin;
+  }
+
+  private createCreepView(type: string): CreepView {
+    const skin = this.skinOf(type);
+    const shadow = applySpriteRef(
+      this.add.image(0, CREEP_SHADOW_Y, skin.shadow.key, skin.shadow.frame),
+      skin.shadow,
+    ).setAlpha(skin.shadowAlpha);
+    const body = applySpriteRef(
+      this.add.image(0, 0, skin.body.key, skin.body.frame),
+      skin.body,
+    );
+    // Walk cycles are seen from above: the body turns in the ground plane, then the whole is
+    // squashed like the ground (flat-object rule). The procedural blob is already drawn in iso.
+    const flat = this.add
+      .container(0, CREEP_BODY_Y, [body])
+      .setScale(1, skin.walk ? FLAT_SCALE_Y : 1);
     const hpBg = this.add
-      .rectangle(-HP_BAR_WIDTH / 2, -12, HP_BAR_WIDTH, 2, 0x111111)
+      .rectangle(-HP_BAR_WIDTH / 2, CREEP_HP_BAR_Y, HP_BAR_WIDTH, 2, 0x111111)
       .setOrigin(0, 0.5);
     const hpFill = this.add
-      .rectangle(-HP_BAR_WIDTH / 2, -12, HP_BAR_WIDTH, 2, hpColor(1))
+      .rectangle(-HP_BAR_WIDTH / 2, CREEP_HP_BAR_Y, HP_BAR_WIDTH, 2, hpColor(1))
       .setOrigin(0, 0.5);
-    const container = this.add.container(0, 0, [shadow, body, hpBg, hpFill]);
+    const container = this.add.container(0, 0, [shadow, flat, hpBg, hpFill]);
     return {
       container,
       body,
+      skin,
+      walk: createWalkState(),
+      walkFrame: 0,
+      angle: 0,
+      extents: creepExtents(skin.body, skin.shadow, skin.walk !== null),
       hpFill,
       hpRatio: 1,
       flashUntil: 0,
@@ -568,15 +643,12 @@ export class GameScene extends Phaser.Scene {
     for (const creep of lane.creeps) {
       let view = this.creeps.get(creep.id);
       if (!view) {
-        view = this.createCreepView();
+        view = this.createCreepView(creep.type);
         this.creeps.set(creep.id, view);
       }
-      const g = interpolatePos(
-        this.prevCreeps.get(creep.id)?.pos,
-        creep.pos,
-        alpha,
-        this.tmpGrid,
-      );
+      const prev = this.prevCreeps.get(creep.id);
+      const g = interpolatePos(prev?.pos, creep.pos, alpha, this.tmpGrid);
+      this.animateCreep(view, g.x, g.y, prev, creep, alpha);
       const p = gridToScreen(g.x, g.y, this.tmpScreen);
       view.container.setPosition(p.x, p.y);
       if (view.depth !== p.y) {
@@ -600,6 +672,35 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(view.body);
       view.container.destroy();
       this.creeps.delete(id);
+    }
+  }
+
+  /**
+   * Walk cycle and facing of a creep with an atlas walk cycle: one frame per WALK_CELLS_PER_FRAME of
+   * distance travelled (interpolated positions, never time), body turned in the ground plane along
+   * the interpolated movement direction (smooth turns at corners; kept when the direction is zero).
+   */
+  private animateCreep(
+    view: CreepView,
+    gx: number,
+    gy: number,
+    prev: CreepState | undefined,
+    creep: CreepState,
+    alpha: number,
+  ): void {
+    const walk = view.skin.walk;
+    if (!walk) return;
+    const n = advanceWalk(view.walk, gx, gy, walk.length);
+    const ref = walk[n];
+    if (n !== view.walkFrame && ref) {
+      view.walkFrame = n;
+      view.body.setTexture(ref.key, ref.frame);
+    }
+    const d = interpolatePos(prev?.dir, creep.dir, alpha, this.tmpDir);
+    const angle = groundAngle(d.x, d.y);
+    if (angle !== null && angle !== view.angle) {
+      view.angle = angle;
+      view.body.setRotation(angle);
     }
   }
 
@@ -638,7 +739,7 @@ export class GameScene extends Phaser.Scene {
       let view = this.projectiles.get(projectile.id);
       if (!view) {
         view = {
-          image: this.add.image(0, 0, '__DEFAULT').setScale(D),
+          image: this.add.image(0, 0, '__DEFAULT'),
           visual: '',
           rotates: false,
           spin: 0,
@@ -651,7 +752,10 @@ export class GameScene extends Phaser.Scene {
         const desc = resolveProjectile(projectile.visual);
         view.rotates = desc.orient;
         view.spin = desc.spin;
-        view.image.setTexture(ensureProjectileTexture(this, projectile.visual));
+        applySpriteRef(
+          view.image,
+          ensureProjectileTexture(this, projectile.visual),
+        );
       }
       const prevPos = this.prevProjectiles.get(projectile.id)?.pos;
       const g = interpolatePos(prevPos, projectile.pos, alpha, this.tmpGrid);
@@ -686,10 +790,11 @@ export class GameScene extends Phaser.Scene {
     for (const view of this.creeps.values()) {
       const { x, y } = view.container;
       const r = view.rect;
-      r.left = x - 8;
-      r.right = x + 8;
-      r.top = y - 16;
-      r.bottom = y + 3;
+      const e = view.extents;
+      r.left = x + e.left;
+      r.right = x + e.right;
+      r.top = y + e.top;
+      r.bottom = y + e.bottom;
       let occluded = false;
       for (const tower of this.towers.values()) {
         if (view.depth < tower.depth && rectsOverlap(r, tower.bounds)) {
@@ -825,9 +930,10 @@ export class GameScene extends Phaser.Scene {
     visual: string,
   ): void {
     const desc = resolveProjectile(visual);
+    const ref = ensureProjectileTexture(this, visual);
     const chain: ChainAnim = this.chainPool.pop() ?? {
       desc,
-      textureKey: '',
+      ref,
       ids: [],
       start: 0,
       hopMs: 0,
@@ -837,7 +943,7 @@ export class GameScene extends Phaser.Scene {
       lastTrail: 0,
     };
     chain.desc = desc;
-    chain.textureKey = ensureProjectileTexture(this, visual);
+    chain.ref = ref;
     chain.start = time;
     chain.hopMs = chainHopMs(victims.length);
     chain.hop = 0;
@@ -861,9 +967,8 @@ export class GameScene extends Phaser.Scene {
     if (desc.chain === 'arc') {
       chain.sprite =
         this.hopSpritePool.pop()?.setActive(true) ??
-        this.add.image(0, 0, chain.textureKey).setScale(D);
-      chain.sprite
-        .setTexture(chain.textureKey)
+        this.add.image(0, 0, ref.key, ref.frame);
+      applySpriteRef(chain.sprite, ref)
         .setVisible(false)
         .setDepth(DEPTH_FX - 4)
         .setRotation(0);
@@ -950,8 +1055,8 @@ export class GameScene extends Phaser.Scene {
             from.x + (to.x - from.x) * t,
             from.y + (to.y - from.y) * t,
             leaf,
-            0.9 * D,
-            0.4 * D,
+            0.9,
+            0.4,
             300,
             (Math.random() * 2 - 1) * STREAK_DRIFT_PX,
             -Math.random() * STREAK_DRIFT_PX,
@@ -1028,21 +1133,12 @@ export class GameScene extends Phaser.Scene {
     ) {
       chain.lastTrail = time;
       if (desc.trail === 'puff') {
-        this.spawnParticle(
-          x,
-          y,
-          desc.color,
-          2.5 * D,
-          4 * D,
-          PUFF_TRAIL_MS,
-          0,
-          -2,
-        );
+        this.spawnParticle(x, y, desc.color, 2.5, 4, PUFF_TRAIL_MS, 0, -2);
       } else {
         this.spawnTrail(
           x,
           y,
-          chain.textureKey,
+          chain.ref,
           sprite.rotation,
           desc.trail === 'spiral',
         );
@@ -1123,8 +1219,8 @@ export class GameScene extends Phaser.Scene {
         source.x,
         source.y - CHAIN_BODY_OFFSET,
         desc.color,
-        2.2 * D,
-        0.4 * D,
+        2.2,
+        0.4,
         SPARK_MS,
         0,
         0,
@@ -1155,24 +1251,22 @@ export class GameScene extends Phaser.Scene {
   private spawnTrail(
     x: number,
     y: number,
-    textureKey: string,
+    ref: SpriteRef,
     rotation: number,
     spiral: boolean,
   ): void {
     const trail =
       this.trailPool.pop()?.setActive(true).setVisible(true) ??
-      this.add.image(0, 0, textureKey);
-    trail
-      .setTexture(textureKey)
+      this.add.image(0, 0, ref.key, ref.frame);
+    applySpriteRef(trail, ref, spiral ? 0.55 : 0.7)
       .setPosition(x, y)
       .setRotation(rotation)
-      .setScale((spiral ? 0.55 : 0.7) * D)
       .setAlpha(0.5)
       .setDepth(DEPTH_FX - 5);
     this.tweens.add({
       targets: trail,
       alpha: 0,
-      scale: (spiral ? 0.2 : 0.3) * D,
+      scale: (spiral ? 0.2 : 0.3) * ref.displayScale,
       rotation: rotation + (spiral ? SPIRAL_TRAIL_TURN : 0),
       duration: spiral ? 220 : CHAIN_TRAIL_FADE_MS,
       onComplete: () => {
@@ -1258,31 +1352,40 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Small tinted particle (spark, leaf, dust puff) scaling and drifting while it fades. */
+  /** New particle image (origin and texture of the particle sprite). */
+  private addParticle(x: number, y: number): Phaser.GameObjects.Image {
+    const p = this.particle;
+    return applySpriteRef(this.add.image(x, y, p.key, p.frame), p);
+  }
+
+  /**
+   * Small tinted particle (spark, leaf, dust puff) scaling and drifting while it fades. Sizes are
+   * multiples of PARTICLE_SIZE.
+   */
   private spawnParticle(
     x: number,
     y: number,
     color: number,
-    scaleFrom: number,
-    scaleTo: number,
+    sizeFrom: number,
+    sizeTo: number,
     duration: number,
     driftX: number,
     driftY: number,
   ): void {
     const particle =
       this.sparkPool.pop()?.setActive(true).setVisible(true) ??
-      this.add.image(0, 0, PARTICLE_KEY);
+      this.addParticle(0, 0);
     particle
       .setPosition(x, y)
       .setTint(color)
-      .setScale(scaleFrom)
+      .setScale(sizeFrom * this.particleScale)
       .setAlpha(0.85)
       .setDepth(DEPTH_FX - 2);
     this.tweens.add({
       targets: particle,
       x: x + driftX,
       y: y + driftY,
-      scale: scaleTo,
+      scale: sizeTo * this.particleScale,
       alpha: 0,
       duration,
       onComplete: () => {
@@ -1417,9 +1520,8 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 6; i++) {
       const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
       const dist = 10 + Math.random() * 6;
-      const particle = this.add
-        .image(x, y, PARTICLE_KEY)
-        .setScale(D)
+      const particle = this.addParticle(x, y)
+        .setScale(this.particleScale)
         .setTint(CREEP_COLOR)
         .setDepth(DEPTH_FX - 1);
       this.tweens.add({
@@ -1427,7 +1529,7 @@ export class GameScene extends Phaser.Scene {
         x: x + Math.cos(angle) * dist,
         y: y + Math.sin(angle) * dist * 0.5,
         alpha: 0,
-        scale: 0.4 * D,
+        scale: 0.4 * this.particleScale,
         duration: 380,
         ease: 'Quad.easeOut',
         onComplete: () => particle.destroy(),
@@ -1436,12 +1538,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onProjectileFired(towerId: EntityId): void {
-    const sprite = this.towers.get(towerId)?.sprite;
-    if (!sprite || this.tweens.isTweening(sprite)) return;
+    const view = this.towers.get(towerId);
+    if (!view || this.tweens.isTweening(view.sprite)) return;
     this.tweens.add({
-      targets: sprite,
-      scaleX: 1.04 * D,
-      scaleY: 0.94 * D,
+      targets: view.sprite,
+      scaleX: 1.04 * view.scale,
+      scaleY: 0.94 * view.scale,
       duration: 60,
       yoyo: true,
       ease: 'Quad.easeOut',
@@ -1736,6 +1838,7 @@ export class GameScene extends Phaser.Scene {
     this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.towers.clear();
     this.creeps.clear();
+    this.creepSkins.clear();
     this.projectiles.clear();
     this.prevCreeps.clear();
     this.prevProjectiles.clear();

@@ -2,11 +2,12 @@
  * Tower model registry (pure, no Phaser): the single place that knows how a model key from the data
  * (`TowerLevelDef.model`, e.g. "human-archer-2") becomes something drawable.
  *
- * Today every model is a procedural placeholder derived from the data: shape from the tower role,
- * height from the level, palette from the faction. Phase 2 maps the same keys to atlas frames here.
+ * Every model is drawn from the atlas frame `tower/<modelId>/<team>` when the atlas has it (see
+ * `towerFrameName`), else as a procedural placeholder derived from the data: shape from the tower
+ * role, height from the level, palette from the faction.
  */
 import { FACTIONS, TOWERS, TOWER_TYPE_IDS, isFactionId } from '@td/shared';
-import type { FactionId, TowerRole, TowerTypeId } from '@td/shared';
+import type { FactionId, Team, TowerRole, TowerTypeId } from '@td/shared';
 import { parseHexColor } from './color.js';
 
 export type ModelShape = 'prism' | 'spire' | 'crystal' | 'mortar';
@@ -27,6 +28,11 @@ export interface ModelDescriptor {
   /** Height of the body above the ground, in logical px. */
   readonly heightPx: number;
   readonly palette: ModelPalette;
+  /**
+   * Atlas frame prefix of the model (the team is appended: `<frame>/<team>`). Derived descriptors use
+   * `tower/<modelId>`; an override may point at another frame.
+   */
+  readonly frame?: string;
 }
 
 /**
@@ -138,8 +144,14 @@ export function resolveModel(modelId: string): ModelDescriptor {
       shape,
       heightPx: HEIGHT_BY_SHAPE[shape](entry.level),
       palette: factionPalette(def.faction),
+      frame: `tower/${modelId}`,
     };
     cache.set(modelId, descriptor);
   }
   return descriptor;
+}
+
+/** Atlas frame of a model in a team colour: `tower/<modelId>/<team>` unless an override says otherwise. */
+export function towerFrameName(modelId: string, team: Team): string {
+  return `${resolveModel(modelId).frame ?? `tower/${modelId}`}/${team}`;
 }

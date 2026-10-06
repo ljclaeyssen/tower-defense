@@ -7,16 +7,22 @@ import {
 import { parseHexColor } from './color.js';
 import {
   MISSING_MODEL,
+  MODEL_OVERRIDES,
   allModelIds,
   findModel,
   modelIdOf,
   resolveModel,
+  towerFrameName,
 } from './model-registry.js';
+import type { ModelDescriptor } from './model-registry.js';
 import {
   MISSING_PROJECTILE,
+  PROJECTILE_OVERRIDES,
   allProjectileVisualIds,
+  projectileFrameName,
   resolveProjectile,
 } from './projectile-registry.js';
+import type { ProjectileDescriptor } from './projectile-registry.js';
 
 describe('parseHexColor', () => {
   it('parses long and short forms, falls back on garbage', () => {
@@ -146,5 +152,43 @@ describe('projectile registry', () => {
   it('resolves every visual of the data', () => {
     for (const id of allProjectileVisualIds())
       expect(resolveProjectile(id)).not.toBe(MISSING_PROJECTILE);
+  });
+});
+
+describe('atlas frame names', () => {
+  it('names tower frames tower/<modelId>/<team> by convention', () => {
+    expect(resolveModel('human-archer-2').frame).toBe('tower/human-archer-2');
+    expect(towerFrameName('human-archer-2', 'red')).toBe(
+      'tower/human-archer-2/red',
+    );
+    // Unknown models keep the convention (the atlas may have art the data does not use yet).
+    expect(towerFrameName('nope-9', 'blue')).toBe('tower/nope-9/blue');
+    for (const id of allModelIds())
+      expect(towerFrameName(id, 'blue')).toBe(`tower/${id}/blue`);
+  });
+
+  it('names projectile frames projectile/<visualId> by convention', () => {
+    expect(resolveProjectile('arrow-humans').frame).toBe(
+      'projectile/arrow-humans',
+    );
+    expect(projectileFrameName('gust-elves')).toBe('projectile/gust-elves');
+    expect(projectileFrameName('laser-humans')).toBe('projectile/laser-humans');
+  });
+
+  it('lets overrides choose another frame', () => {
+    const models = MODEL_OVERRIDES as Record<string, ModelDescriptor>;
+    const projectiles = PROJECTILE_OVERRIDES as Record<
+      string,
+      ProjectileDescriptor
+    >;
+    models['special-1'] = { ...MISSING_MODEL, frame: 'tower/shared-keep' };
+    projectiles['special-1'] = { ...MISSING_PROJECTILE, frame: 'fx/orb' };
+    try {
+      expect(towerFrameName('special-1', 'red')).toBe('tower/shared-keep/red');
+      expect(projectileFrameName('special-1')).toBe('fx/orb');
+    } finally {
+      delete models['special-1'];
+      delete projectiles['special-1'];
+    }
   });
 });

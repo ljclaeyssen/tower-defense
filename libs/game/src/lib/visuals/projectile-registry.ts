@@ -1,7 +1,8 @@
 /**
  * Projectile visual registry (pure, no Phaser): the single place that knows how a projectile visual
  * key from the data (`ProjectileDef.visual`, "<shape>-<faction>", e.g. "swirl-elves") is drawn.
- * Phase 2 maps the same keys to atlas frames here.
+ * The sprite comes from the atlas frame `projectile/<visualId>` when present (`projectileFrameName`),
+ * else from a procedural placeholder of the descriptor's shape; the behaviour fields always apply.
  */
 import { FACTIONS, TOWERS, TOWER_TYPE_IDS, isFactionId } from '@td/shared';
 import { mixColor } from '../render-math.js';
@@ -59,6 +60,8 @@ export interface ProjectileDescriptor {
   readonly impact: ProjectileImpact;
   /** Fill-flash colour of the creeps it hits. */
   readonly hitFlash: number;
+  /** Atlas frame (derived descriptors: `projectile/<visualId>`; an override may point elsewhere). */
+  readonly frame?: string;
 }
 
 /** Hand-tuned descriptors by visual key; empty for now (everything is derived from the key). */
@@ -148,6 +151,16 @@ const BASE: Readonly<Record<ProjectileShape, ShapeBase>> = {
 
 const cache = new Map<string, ProjectileDescriptor>();
 
+const projectileFrameByConvention = (visualId: string): string =>
+  `projectile/${visualId}`;
+
+/** Atlas frame of a projectile visual: `projectile/<visualId>` unless an override says otherwise. */
+export function projectileFrameName(visualId: string): string {
+  return (
+    resolveProjectile(visualId).frame ?? projectileFrameByConvention(visualId)
+  );
+}
+
 export function resolveProjectile(visualId: string): ProjectileDescriptor {
   const override = PROJECTILE_OVERRIDES[visualId];
   if (override) return override;
@@ -164,6 +177,7 @@ export function resolveProjectile(visualId: string): ProjectileDescriptor {
       ...rest,
       shape,
       color: mixColor(color, accent, accentMix),
+      frame: projectileFrameByConvention(visualId),
     };
     cache.set(visualId, descriptor);
   }

@@ -12,6 +12,8 @@ import {
   readDevicePixelRatio,
 } from './display.js';
 import { GALLERY_SCENE_KEY, GalleryScene } from './scenes/gallery-scene.js';
+import type { GallerySceneData } from './scenes/gallery-scene.js';
+import { DEFAULT_ASSETS_BASE_URL } from './visuals/atlas.js';
 import { GAME_SCENE_KEY, GameScene } from './scenes/game-scene.js';
 import type { GameSceneData } from './scenes/game-scene.js';
 
@@ -41,7 +43,8 @@ function createPhaserGame(parent: HTMLElement): MountedGame {
     banner: false,
     disableContextMenu: true,
     input: { keyboard: true, mouse: { preventDefaultWheel: true } },
-    // Baked textures are supersampled power-of-two canvases: mipmaps keep them smooth when zoomed out.
+    // Baked textures (supersampled power-of-two canvases) and the @2x atlas are displayed downscaled:
+    // mipmaps keep them smooth when zoomed out.
     render: { antialias: true, mipmapFilter: 'LINEAR_MIPMAP_LINEAR' },
   });
   (parent as PhaserHost).__phaserGame = game;
@@ -64,10 +67,11 @@ function createPhaserGame(parent: HTMLElement): MountedGame {
 export function launchGame({
   parent,
   session,
+  assetsBaseUrl = DEFAULT_ASSETS_BASE_URL,
 }: LaunchGameOptions): LaunchedGame {
   const bridge = new LocalGameBridge(session);
   const mounted = createPhaserGame(parent);
-  const data: GameSceneData = { session, bridge };
+  const data: GameSceneData = { session, bridge, assetsBaseUrl };
   mounted.game.scene.add(GAME_SCENE_KEY, GameScene, true, data);
 
   let destroyed = false;
@@ -82,12 +86,14 @@ export function launchGame({
   };
 }
 
-/** Mounts the placeholder asset gallery in `parent`. */
+/** Mounts the asset gallery (atlas frames listed by the manifest, else the placeholders) in `parent`. */
 export function launchGallery({
   parent,
+  assetsBaseUrl = DEFAULT_ASSETS_BASE_URL,
 }: LaunchGalleryOptions): LaunchedGallery {
   const mounted = createPhaserGame(parent);
-  mounted.game.scene.add(GALLERY_SCENE_KEY, GalleryScene, true);
+  const data: GallerySceneData = { assetsBaseUrl };
+  mounted.game.scene.add(GALLERY_SCENE_KEY, GalleryScene, true, data);
 
   let destroyed = false;
   return {

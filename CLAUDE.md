@@ -182,3 +182,22 @@ dark, top lightest), grid cell 32×16 logical px, anchor at the footprint center
 - **Pierce chains** travel backwards hop by hop; the look comes from the projectile registry
   (`shape`, `chain` style arc/bolt/streak/ripple, `spin`, `trail`, `impact`, `hitFlash`), derived
   from the `projectile.visual` key: tornado-humans, gust-elves, dust-orcs, wail-undead, bolt-dwarves.
+
+## Art pipeline (`tools/art`, Nx project `art`, tag `scope:tools`)
+
+- Nx `projectType: application` (a CLI, so it may import the non-buildable shared lib).
+- `npx nx run art:build` → `apps/web/public/assets/atlas@1x.{png,json}`, `atlas@2x.{png,json}`,
+  `manifest.json`, `contact-sheet.png` (gitignored; `web:build` and `web:serve` depend on it).
+  `npx nx run art:watch` rebuilds on generator or data changes; `--only=<frame prefix>` to iterate.
+- Generators are TypeScript (`tools/art/src/generators/**`), parametric (`{ faction, level, team }`,
+  `{ team, frame }`), returning SVG strings built with `svg.ts`; `iso.ts` has the prism/face/pattern
+  helpers, `palette.ts` the colours (faction kits, team colours, glows). Rasterised by
+  `@resvg/resvg-js`, packed by the in-house shelf packer (2 px padding, 1 px extrusion, 2^n pages).
+- Frame names (the renderer looks them up, falling back to procedural textures when missing):
+  `ground/<kind>` (grass-a, grass-b, path-a, path-b, rock, spawn, exit, flash),
+  `tower/<modelId>/<team>`, `projectile/<visualId>`, `creep/<creepId>/walk/<0-3>`,
+  `creep/<creepId>/shadow`, `fx/particle`. Pivots are written in the atlas JSON: towers at the footprint
+  centre, tiles at the diamond centre, projectiles and creeps at their centre.
+- Logical sizes @1x: tile 32×16 (+2 px overhang), tower 64 × ≤112, creep 16×16, shadow 16×8,
+  projectile 12×12 (arrow/bolt/gust 16×8 pointing +x). The game loads `@2x` and displays at 0.5.
+- After changing a generator: build, open the PNGs (contact sheet) and fix before handing back.

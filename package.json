@@ -27,6 +27,7 @@
     "@nx/node": "23.2.1",
     "@nx/vitest": "23.2.1",
     "@nx/web": "23.2.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@schematics/angular": "22.2.1",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
@@ -51,7 +52,8 @@
   },
   "workspaces": [
     "apps/*",
-    "libs/*"
+    "libs/*",
+    "tools/*"
   ],
   "overrides": {
     "@nx/vitest": {

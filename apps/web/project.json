@@ -44,7 +44,8 @@
           "extractLicenses": false,
           "sourceMap": true
         }
-      }
+      },
+      "dependsOn": ["^build", "art:build"]
     },
     "serve": {
       "continuous": true,
@@ -62,7 +63,8 @@
         "prebundle": {
           "exclude": ["@td/game", "@td/sim", "@td/shared"]
         }
-      }
+      },
+      "dependsOn": ["art:build"]
     },
     "test": {
       "executor": "@angular/build:unit-test",

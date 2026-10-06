@@ -5,32 +5,55 @@ import { TILE_H, TILE_W } from '../iso.js';
 import { GROUND_KINDS } from '../ground.js';
 import type { GroundKind } from '../ground.js';
 import { mixColor, nextPowerOfTwo } from '../render-math.js';
-import { resolveModel } from '../visuals/model-registry.js';
+import {
+  ATLAS_KEY,
+  CREEP_WALK_FRAMES,
+  GROUND_FLASH_FRAME,
+  PARTICLE_FRAME,
+  creepShadowFrameName,
+  creepWalkFrameName,
+  groundFrameName,
+  spriteRefFromFrame,
+} from '../visuals/atlas.js';
+import type { SpriteRef } from '../visuals/atlas.js';
+import { resolveModel, towerFrameName } from '../visuals/model-registry.js';
 import type { ModelDescriptor } from '../visuals/model-registry.js';
-import { resolveProjectile } from '../visuals/projectile-registry.js';
+import {
+  projectileFrameName,
+  resolveProjectile,
+} from '../visuals/projectile-registry.js';
 
 /**
- * Procedural placeholder art: every texture is drawn once with a Graphics object and baked with
- * `generateTexture` (Canvas API, so no gradients). Textures are global to the Phaser.Game.
+ * Sprite resolution. Every lookup below returns a {@link SpriteRef}: the atlas frame (texture
+ * `ATLAS_KEY`, displayed at `ATLAS_DISPLAY_SCALE`) when the loaded atlas has it, else a procedural
+ * placeholder.
  *
- * Textures are supersampled: drawn TEXTURE_SCALE times larger than their logical (world) size and
- * padded to power-of-two dimensions so WebGL can mipmap them. Every consumer displays them with
- * `setScale(TEXTURE_DISPLAY_SCALE)`; the content stays centered in the padded texture, so the default
- * 0.5 origin still points at the content center. All sizes below are logical (world px).
+ * Procedural placeholders are drawn once with a Graphics object and baked with `generateTexture`
+ * (Canvas API, so no gradients). Textures are global to the Phaser.Game. They are supersampled: drawn
+ * TEXTURE_SCALE times larger than their logical (world) size and padded to power-of-two dimensions so
+ * WebGL can mipmap them; a {@link BAKED_FRAME} frame cuts the content out of the padding, so a baked
+ * texture is used exactly like an atlas frame. All sizes below are logical (world px).
  */
+
+export type { SpriteRef } from '../visuals/atlas.js';
+export { ATLAS_KEY } from '../visuals/atlas.js';
 
 /** Supersampling factor of the baked textures. */
 export const TEXTURE_SCALE = 4;
 /** Scale that displays a baked texture at its logical size. */
 export const TEXTURE_DISPLAY_SCALE = 1 / TEXTURE_SCALE;
+/** Frame of a baked texture that covers its content (without the power-of-two padding). */
+export const BAKED_FRAME = 'content';
 
-/** Physical (texture px) size of a baked texture and offset of its content inside it. */
+/** Physical (texture px) size of a baked texture, of its content, and offset of the content inside it. */
 function bakedLayout(
   width: number,
   height: number,
 ): {
   readonly width: number;
   readonly height: number;
+  readonly contentWidth: number;
+  readonly contentHeight: number;
   readonly offsetX: number;
   readonly offsetY: number;
 } {
@@ -41,9 +64,57 @@ function bakedLayout(
   return {
     width: pw,
     height: ph,
+    contentWidth: w,
+    contentHeight: h,
     offsetX: (pw - w) / 2,
     offsetY: (ph - h) / 2,
   };
+}
+
+/** SpriteRef of a baked texture of logical size width x height anchored at (originX, originY). */
+function bakedRef(
+  key: string,
+  width: number,
+  height: number,
+  originX = 0.5,
+  originY = 0.5,
+): SpriteRef {
+  return {
+    key,
+    frame: BAKED_FRAME,
+    displayScale: TEXTURE_DISPLAY_SCALE,
+    width,
+    height,
+    originX,
+    originY,
+  };
+}
+
+/** SpriteRef of `frameName` in the loaded atlas, or null when there is no atlas or no such frame. */
+export function atlasRef(
+  scene: Phaser.Scene,
+  frameName: string,
+): SpriteRef | null {
+  const textures = scene.textures;
+  if (!textures.exists(ATLAS_KEY)) return null;
+  const texture = textures.get(ATLAS_KEY);
+  if (!texture.has(frameName)) return null;
+  const frame = texture.get(frameName);
+  return spriteRefFromFrame(ATLAS_KEY, frameName, {
+    sourceW: frame.realWidth,
+    sourceH: frame.realHeight,
+    pivotX: frame.customPivot ? frame.pivotX : 0.5,
+    pivotY: frame.customPivot ? frame.pivotY : 0.5,
+  });
+}
+
+/** Frame names of the loaded atlas (empty without atlas). */
+export function atlasFrameNames(scene: Phaser.Scene): string[] {
+  if (!scene.textures.exists(ATLAS_KEY)) return [];
+  return scene.textures
+    .get(ATLAS_KEY)
+    .getFrameNames(false)
+    .filter((n) => n !== '__BASE');
 }
 
 export { GROUND_KINDS } from '../ground.js';
@@ -54,6 +125,12 @@ export const GROUND_FLASH_KEY = 'ground-flash';
 export const CREEP_BODY_KEY = 'creep-body';
 export const CREEP_SHADOW_KEY = 'creep-shadow';
 export const PARTICLE_KEY = 'particle';
+
+/** Logical sizes of the shared procedural textures. */
+const CREEP_BODY_SIZE = { width: 14, height: 11 } as const;
+const CREEP_SHADOW_SIZE = { width: 14, height: 6 } as const;
+/** Logical diameter of particles; atlas particles are scaled to it (callers think in particles). */
+export const PARTICLE_SIZE = 4;
 
 export const TEAM_COLORS: Record<Team, number> = {
   blue: 0x3b82f6,
@@ -94,68 +171,61 @@ const TOWER_HALF_W = (TILE_W * TOWER_FOOTPRINT) / 2 - 6;
 /** Free space above the top face center in tower textures (orbs, crystals). */
 const TOWER_HEADROOM = TILE_H;
 
-export interface TowerTextureInfo {
-  readonly key: string;
-  /** Logical size of the drawn model area (for bounds, hit tests and occlusion). */
-  readonly width: number;
-  readonly height: number;
-  /** Anchor (footprint center) as a ratio of the logical content area. */
-  readonly originX: number;
-  readonly originY: number;
-  /** Anchor as a ratio of the padded baked texture: pass these to `setOrigin`. */
-  readonly displayOriginX: number;
-  readonly displayOriginY: number;
-}
-
 export const towerTextureKey = (modelId: string, team: Team): string =>
   `tower-${modelId}-${team}`;
 export const projectileTextureKey = (visualId: string): string =>
   `projectile-${visualId}`;
 
-/** Layout of the tower texture of `modelId` (the texture itself is baked by `ensureTowerTexture`). */
-export function towerTexture(modelId: string, team: Team): TowerTextureInfo {
+/** Procedural tower sprite of `modelId` (the texture itself is baked by `ensureTowerTexture`). */
+export function towerTexture(modelId: string, team: Team): SpriteRef {
   const h = resolveModel(modelId).heightPx;
   const width = TILE_W * TOWER_FOOTPRINT;
   const anchorY = TOWER_HEADROOM + h;
   const height = anchorY + (TILE_H * TOWER_FOOTPRINT) / 2;
-  const layout = bakedLayout(width, height);
-  return {
-    key: towerTextureKey(modelId, team),
+  return bakedRef(
+    towerTextureKey(modelId, team),
     width,
     height,
-    originX: 0.5,
-    originY: anchorY / height,
-    displayOriginX:
-      (layout.offsetX + (width / 2) * TEXTURE_SCALE) / layout.width,
-    displayOriginY: (layout.offsetY + anchorY * TEXTURE_SCALE) / layout.height,
-  };
+    0.5,
+    anchorY / height,
+  );
 }
 
-/** Bakes the tower texture of (`modelId`, `team`) on first use and returns its layout. */
+/**
+ * Sprite of the tower model `modelId` in `team` colours, anchored at the footprint center: the atlas
+ * frame `tower/<modelId>/<team>` when present, else the procedural model (baked on first use).
+ */
 export function ensureTowerTexture(
   scene: Phaser.Scene,
   modelId: string,
   team: Team,
-): TowerTextureInfo {
-  const info = towerTexture(modelId, team);
-  if (!scene.textures.exists(info.key)) {
+): SpriteRef {
+  const fromAtlas = atlasRef(scene, towerFrameName(modelId, team));
+  if (fromAtlas) return fromAtlas;
+  const ref = towerTexture(modelId, team);
+  if (!scene.textures.exists(ref.key)) {
     withGraphics(scene, (g) =>
-      bake(scene, g, info.key, info.width, info.height, () =>
-        drawTower(g, resolveModel(modelId), info, team),
+      bake(scene, g, ref.key, ref.width, ref.height, () =>
+        drawTower(g, resolveModel(modelId), ref, team),
       ),
     );
   }
-  return info;
+  return ref;
 }
 
 /** Logical size of projectile textures (square, centered on the projectile). */
 const PROJECTILE_SIZE = 12;
 
-/** Bakes the projectile texture of `visualId` on first use and returns its key. */
+/**
+ * Sprite of the projectile visual `visualId`, centered: the atlas frame `projectile/<visualId>` when
+ * present, else the procedural shape (baked on first use).
+ */
 export function ensureProjectileTexture(
   scene: Phaser.Scene,
   visualId: string,
-): string {
+): SpriteRef {
+  const fromAtlas = atlasRef(scene, projectileFrameName(visualId));
+  if (fromAtlas) return fromAtlas;
   const key = projectileTextureKey(visualId);
   if (!scene.textures.exists(key)) {
     withGraphics(scene, (g) =>
@@ -164,7 +234,89 @@ export function ensureProjectileTexture(
       ),
     );
   }
-  return key;
+  return bakedRef(key, PROJECTILE_SIZE, PROJECTILE_SIZE);
+}
+
+/** Ground tile of `kind`, anchored at the diamond center (requires `ensureTextures`). */
+export function groundRef(scene: Phaser.Scene, kind: GroundKind): SpriteRef {
+  return (
+    atlasRef(scene, groundFrameName(kind)) ??
+    bakedRef(groundTextureKey(kind), TILE_W, TILE_H)
+  );
+}
+
+/** White tile diamond flashed over the exit (requires `ensureTextures`). */
+export function groundFlashRef(scene: Phaser.Scene): SpriteRef {
+  return (
+    atlasRef(scene, GROUND_FLASH_FRAME) ??
+    bakedRef(GROUND_FLASH_KEY, TILE_W, TILE_H)
+  );
+}
+
+/** White round particle, meant to be tinted (requires `ensureTextures`). */
+export function particleRef(scene: Phaser.Scene): SpriteRef {
+  return (
+    atlasRef(scene, PARTICLE_FRAME) ??
+    bakedRef(PARTICLE_KEY, PARTICLE_SIZE, PARTICLE_SIZE)
+  );
+}
+
+/** Sprites of a creep type. */
+export interface CreepSkin {
+  /** Walk cycle seen from above facing +x (rotated and flattened in the ground plane), or null. */
+  readonly walk: readonly SpriteRef[] | null;
+  /** Body shown when there is no walk cycle (an upright iso blob, never rotated); else walk[0]. */
+  readonly body: SpriteRef;
+  readonly shadow: SpriteRef;
+  /** Alpha of the shadow sprite (the procedural shadow is opaque black). */
+  readonly shadowAlpha: number;
+}
+
+/**
+ * Sprites of creep `creepId`: the atlas walk cycle `creep/<id>/walk/0..3` (all frames required) and
+ * shadow `creep/<id>/shadow` when present, else the procedural blob and shadow (requires
+ * `ensureTextures`).
+ */
+export function creepSkin(scene: Phaser.Scene, creepId: string): CreepSkin {
+  const walk: SpriteRef[] = [];
+  for (let n = 0; n < CREEP_WALK_FRAMES; n++) {
+    const ref = atlasRef(scene, creepWalkFrameName(creepId, n));
+    if (!ref) break;
+    walk.push(ref);
+  }
+  const first = walk.length === CREEP_WALK_FRAMES ? walk[0] : undefined;
+  const shadow = atlasRef(scene, creepShadowFrameName(creepId));
+  return {
+    walk: first ? walk : null,
+    body:
+      first ??
+      bakedRef(CREEP_BODY_KEY, CREEP_BODY_SIZE.width, CREEP_BODY_SIZE.height),
+    shadow:
+      shadow ??
+      bakedRef(
+        CREEP_SHADOW_KEY,
+        CREEP_SHADOW_SIZE.width,
+        CREEP_SHADOW_SIZE.height,
+      ),
+    shadowAlpha: shadow ? 1 : 0.35,
+  };
+}
+
+/** Image-like game object that can display a SpriteRef. */
+type SpriteTarget = Phaser.GameObjects.Components.Texture &
+  Phaser.GameObjects.Components.Transform &
+  Phaser.GameObjects.Components.Origin;
+
+/** Shows `ref` on `image`: texture + frame, display scale (x `scaleFactor`) and origin. */
+export function applySpriteRef<T extends SpriteTarget>(
+  image: T,
+  ref: SpriteRef,
+  scaleFactor = 1,
+): T {
+  image.setTexture(ref.key, ref.frame);
+  image.setScale(ref.displayScale * scaleFactor);
+  image.setOrigin(ref.originX, ref.originY);
+  return image;
 }
 
 function withGraphics(
@@ -180,8 +332,9 @@ function withGraphics(
 }
 
 /**
- * Generates the shared textures (ground, creeps, particles). Towers and projectiles are baked lazily
- * by `ensureTowerTexture` / `ensureProjectileTexture`. No-op for textures that already exist.
+ * Generates the shared procedural textures (ground, creeps, particles), used whenever the atlas lacks
+ * a frame. Towers and projectiles are baked lazily by `ensureTowerTexture` / `ensureProjectileTexture`.
+ * No-op for textures that already exist.
  */
 export function ensureTextures(scene: Phaser.Scene): void {
   const g = scene.make.graphics({}, false);
@@ -195,15 +348,17 @@ export function ensureTextures(scene: Phaser.Scene): void {
       diamondPath(g, TILE_W / 2, TILE_H / 2, TILE_W / 2, TILE_H / 2);
       g.fillStyle(0xffffff, 1).fillPath();
     });
-    bake(scene, g, CREEP_BODY_KEY, 14, 11, () => {
+    const body = CREEP_BODY_SIZE;
+    bake(scene, g, CREEP_BODY_KEY, body.width, body.height, () => {
       g.fillStyle(CREEP_COLOR, 1).fillEllipse(7, 5.5, 12, 9);
       g.fillStyle(0xffffff, 0.18).fillEllipse(6, 4, 6, 3);
       g.lineStyle(1, 0x2b2416, 1).strokeEllipse(7, 5.5, 12, 9);
     });
-    bake(scene, g, CREEP_SHADOW_KEY, 14, 6, () => {
+    const shadow = CREEP_SHADOW_SIZE;
+    bake(scene, g, CREEP_SHADOW_KEY, shadow.width, shadow.height, () => {
       g.fillStyle(0x000000, 1).fillEllipse(7, 3, 14, 6);
     });
-    bake(scene, g, PARTICLE_KEY, 4, 4, () => {
+    bake(scene, g, PARTICLE_KEY, PARTICLE_SIZE, PARTICLE_SIZE, () => {
       g.fillStyle(0xffffff, 1).fillCircle(2, 2, 2);
     });
   } finally {
@@ -227,6 +382,16 @@ function bake(
   g.scaleCanvas(TEXTURE_SCALE, TEXTURE_SCALE);
   draw();
   g.generateTexture(key, layout.width, layout.height);
+  scene.textures
+    .get(key)
+    .add(
+      BAKED_FRAME,
+      0,
+      layout.offsetX,
+      layout.offsetY,
+      layout.contentWidth,
+      layout.contentHeight,
+    );
 }
 
 /** Adds a closed diamond path centered on (cx, cy) with the given half extents. */
@@ -296,10 +461,10 @@ type Point = readonly [number, number];
 function drawTower(
   g: Phaser.GameObjects.Graphics,
   model: ModelDescriptor,
-  info: TowerTextureInfo,
+  info: SpriteRef,
   team: Team,
 ): void {
-  const cx = info.width / 2;
+  const cx = info.width * info.originX;
   const cy = info.height * info.originY; // footprint center (ground)
   switch (model.shape) {
     case 'spire':
