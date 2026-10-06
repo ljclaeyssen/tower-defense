@@ -1,4 +1,11 @@
-import { CREEPS, ECONOMY, FACTION_IDS, TOWER_ROLES, WAVES } from '@td/shared';
+import {
+  CREEPS,
+  ECONOMY,
+  FACTION_IDS,
+  TOWER_ROLES,
+  WAVES,
+  type CreepTypeId,
+} from '@td/shared';
 import { runScriptedPve } from './testing.js';
 
 describe('end-to-end balance on the basic map', () => {
@@ -51,15 +58,28 @@ describe('end-to-end balance on the basic map', () => {
       const leaked = events.filter((e) => e.type === 'LifeLost').length;
       expect(killed + leaked).toBe(totalCreeps);
       expect(state.players[0]?.lives).toBe(ECONOMY.startingLives - leaked);
+      // Kill events are GoldChanged{kill} immediately followed by CreepKilled: the bounty paid is
+      // the one of the killed creep's type.
+      const typeOf = new Map<number, CreepTypeId>();
+      for (const e of events)
+        if (e.type === 'CreepSpawned') typeOf.set(e.creep.id, e.creep.type);
       const bounty = events.filter(
         (e) => e.type === 'GoldChanged' && e.reason === 'kill',
       );
       expect(bounty).toHaveLength(killed);
-      expect(
-        bounty.every(
-          (e) => e.type === 'GoldChanged' && e.delta === CREEPS.beetle.bounty,
-        ),
-      ).toBe(true);
+      events.forEach((e, i) => {
+        if (e.type !== 'CreepKilled') return;
+        const type = typeOf.get(e.creepId);
+        expect(type).toBeDefined();
+        const paid = events[i - 1];
+        expect(
+          paid?.type === 'GoldChanged' && paid.reason === 'kill' && paid.delta,
+        ).toBe(type ? CREEPS[type].bounty : NaN);
+      });
+      // Both creep kinds actually showed up.
+      expect(new Set(typeOf.values()).size).toBe(
+        new Set(WAVES.map((w) => w.creepType)).size,
+      );
     },
   );
 });

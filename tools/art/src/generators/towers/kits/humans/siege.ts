@@ -1,6 +1,6 @@
 /**
  * Burst tower: squat bastion carrying a mortar barrel. The barrel grows each level; level 2 adds
- * crenellations and corner buttresses, level 3 iron bands and a bigger reinforced barrel.
+ * crenellations and low corner buttresses, level 3 iron bands and a bigger reinforced barrel.
  */
 import {
   box,
@@ -8,10 +8,10 @@ import {
   faceTransform,
   prism,
   project,
-} from '../../iso.js';
-import { IRON, faces, mix, shade } from '../../palette.js';
-import { circle, ellipse, group, path, pathD, rect } from '../../svg.js';
-import type { Sprite, TowerParams } from '../types.js';
+} from '../../../../iso.js';
+import { IRON, faces, mix, shade } from '../../../../palette.js';
+import { circle, ellipse, group, path, pathD, rect } from '../../../../svg.js';
+import type { Sprite, TowerParams } from '../../../types.js';
 import {
   banner,
   finishTower,
@@ -20,8 +20,8 @@ import {
   teamBand,
   towerCanvas,
   towerShadow,
-} from './parts.js';
-import type { TowerCanvas } from './parts.js';
+} from '../../parts.js';
+import type { TowerCanvas } from '../../parts.js';
 
 const HEIGHTS = [74, 82, 92] as const;
 
@@ -98,7 +98,8 @@ export function generateSiegeTower(params: TowerParams): Sprite {
       cy: y,
       size: 0.3,
       z: 4,
-      height: wallH + 2,
+      // Lower than the wall top so the merlons stay clear.
+      height: wallH - 3,
       colour: shade(kit.stone, 0.92),
       course: 4,
     });
@@ -124,7 +125,7 @@ export function generateSiegeTower(params: TowerParams): Sprite {
       );
     }
   }
-  if (level >= 2) parts.push(buttress(h, -h), buttress(-h, h));
+  if (level >= 2) parts.push(buttress(h, -h), buttress(-h, h), buttress(h, h));
 
   // Turntable and barrel.
   const turntable = prism(c, {
@@ -150,11 +151,11 @@ export function generateSiegeTower(params: TowerParams): Sprite {
   const barrelAt = project(c.o, 0, 0, top + 5);
   parts.push(
     merlons.back,
-    banner(c, [-h + 0.15, -h + 0.15, top + (level >= 2 ? 4 : 0)], 16, 0.85),
     turntable,
     mortar(c, barrelAt, 4 + level * 0.8, 9 + level * 2.5, level),
     merlons.front,
+    // Banner on the left corner, clear of the barrel that tilts to the right.
+    banner(c, [-h + 0.12, h - 0.12, top + (level >= 2 ? 4 : 0)], 16, 0.85),
   );
-  if (level >= 2) parts.push(buttress(h, h));
   return finishTower(c, parts);
 }

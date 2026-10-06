@@ -2,11 +2,18 @@
  * Single-target tower: stone tower with a wooden platform and an archer, team banner.
  * Level 2 adds a second floor and crenellations; level 3 a roof (kit style) and glowing arrow slits.
  */
-import { box, crenellations, planks, prism, project, roof } from '../../iso.js';
-import { FIGURE, TEAM_COLOURS, faces, shade } from '../../palette.js';
-import { group, line, path, polygon, circle } from '../../svg.js';
-import type { Pt } from '../../svg.js';
-import type { Sprite, TowerParams } from '../types.js';
+import {
+  box,
+  crenellations,
+  planks,
+  prism,
+  project,
+  roof,
+} from '../../../../iso.js';
+import { FIGURE, TEAM_COLOURS, faces, shade } from '../../../../palette.js';
+import { group, line, path, polygon, circle } from '../../../../svg.js';
+import type { Pt } from '../../../../svg.js';
+import type { Sprite, TowerParams } from '../../../types.js';
 import {
   banner,
   finishTower,
@@ -16,8 +23,8 @@ import {
   teamBand,
   towerCanvas,
   towerShadow,
-} from './parts.js';
-import type { TowerCanvas } from './parts.js';
+} from '../../parts.js';
+import type { TowerCanvas } from '../../parts.js';
 
 const HEIGHTS = [88, 104, 112] as const;
 

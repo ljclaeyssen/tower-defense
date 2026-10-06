@@ -12,6 +12,7 @@ import {
 } from '@td/shared';
 import type { CreepTypeId } from '@td/shared';
 import { BEETLE, WALK_FRAMES } from './generators/creeps/beetle.js';
+import { SLIME_CREEP } from './generators/creeps/slime.js';
 import { GROUND_KINDS, generateGround } from './generators/ground.js';
 import {
   generateParticle,
@@ -40,10 +41,21 @@ export interface FrameEntry {
   readonly generate: () => Sprite;
 }
 
-/** Creep generators by creep id: every creep of creeps.json must have one (type-checked). */
-export const CREEP_GENERATORS: Readonly<Record<CreepTypeId, CreepGenerator>> = {
+/**
+ * Creep generators by creep id. Every creep of creeps.json must have one (type-checked); extra
+ * entries (e.g. slime, ready before its data exists) are only listed once the data has them.
+ */
+export const CREEP_GENERATORS: {
+  readonly [K in CreepTypeId]: CreepGenerator;
+} & Readonly<Record<string, CreepGenerator>> = {
   beetle: BEETLE,
+  slime: SLIME_CREEP,
 };
+
+export interface ManifestOptions {
+  /** QA only: also list creep generators that creeps.json does not declare yet. */
+  readonly allCreeps?: boolean;
+}
 
 /** Unique projectile visual ids of towers.json, in tower order. */
 export function projectileVisualIds(): string[] {
@@ -53,7 +65,7 @@ export function projectileVisualIds(): string[] {
   return [...out];
 }
 
-export function buildManifest(): FrameEntry[] {
+export function buildManifest(options: ManifestOptions = {}): FrameEntry[] {
   const frames: FrameEntry[] = [];
   for (const kind of GROUND_KINDS)
     frames.push({
@@ -86,8 +98,17 @@ export function buildManifest(): FrameEntry[] {
       label: visual,
       generate: () => generateProjectile(visual),
     });
-  for (const creep of CREEP_TYPE_IDS) {
+  const creeps: readonly string[] = options.allCreeps
+    ? [
+        ...new Set<string>([
+          ...CREEP_TYPE_IDS,
+          ...Object.keys(CREEP_GENERATORS),
+        ]),
+      ]
+    : CREEP_TYPE_IDS;
+  for (const creep of creeps) {
     const gen = CREEP_GENERATORS[creep];
+    if (!gen) throw new Error(`No generator for creep ${creep}`);
     for (let frame = 0; frame < WALK_FRAMES; frame++)
       frames.push({
         name: `creep/${creep}/walk/${frame}`,

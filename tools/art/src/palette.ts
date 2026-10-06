@@ -106,6 +106,14 @@ export const CREEP = {
   eye: '#f2e6a0',
 } as const;
 
+/** Slime creep: translucent green jelly with a darker core. */
+export const SLIME = {
+  body: '#7ad65c',
+  core: '#3f9a3a',
+  rim: '#2b6a2a',
+  eye: '#16240f',
+} as const;
+
 /** Small figures (archers) and dark metal parts shared by every faction. */
 export const FIGURE = {
   skin: '#e2b48a',
@@ -114,6 +122,76 @@ export const FIGURE = {
   string: '#efe6cf',
 } as const;
 export const IRON = '#46484f';
+
+/** Elves: pale marble, silver birch, layered foliage, moonlight. */
+export const ELF = {
+  marble: '#eef0e6',
+  marbleVein: '#b9c4b4',
+  bark: '#b8ab8a',
+  birch: '#f2f1e6',
+  leaf: '#8fd49a',
+  leafTeal: '#58b8a2',
+  leafDeep: '#2f7a62',
+  moon: '#effff9',
+  pool: '#7fe6e0',
+  lantern: '#fff1a8',
+  flowers: ['#f7b8d8', '#ffffff', '#c9b8ff'],
+  earth: '#6b5a3c',
+  moss: '#5f9a4f',
+  gold: '#e8d48a',
+} as const;
+
+/** Orcs: rough logs, stretched hides, bone, iron, red war paint, embers. */
+export const ORC = {
+  log: '#7a5233',
+  logEnd: '#c49a68',
+  hide: '#b48552',
+  hideStitch: '#4e3220',
+  iron: '#4b4a4f',
+  bone: '#e6dcc0',
+  paint: '#c0352a',
+  ember: '#ff8a2a',
+  fire: '#ffc04a',
+  earth: '#6e5236',
+  dust: '#b48c5c',
+  stone: '#7d6f62',
+  feather: '#e8e0d0',
+  ice: '#bfe8f6',
+  skin: '#6f9a3a',
+  leather: '#5a3a24',
+  snow: '#e8f4fa',
+} as const;
+
+/** Undead: dark gothic stone, black iron, bone, soul-fire green, tattered violet cloth. */
+export const UNDEAD = {
+  stone: '#4f4a60',
+  slate: '#3d3652',
+  iron: '#2b2931',
+  bone: '#e3d8bd',
+  soul: '#7dff6a',
+  rune: '#9effd8',
+  grave: '#7d7b88',
+  cauldron: '#2c3328',
+  ooze: '#8cff4a',
+  spectre: '#d8fff0',
+  earth: '#3d3a33',
+} as const;
+
+/** Dwarves and gnomes: granite, riveted iron plates, brass, copper, glass, smoke. */
+export const DWARF = {
+  granite: '#7a7f88',
+  plate: '#5f656e',
+  brass: '#cfa64e',
+  copper: '#c4733c',
+  glass: '#c8ecff',
+  smoke: '#9a9aa0',
+  window: '#ffc864',
+  crate: '#9a6a3a',
+  tank: '#5b86a8',
+  frost: '#c8f4ff',
+  spark: '#bfe6ff',
+  porcelain: '#eeeae0',
+} as const;
 
 export type RoofStyle = 'cone' | 'pyramid';
 

@@ -2,11 +2,17 @@
  * Pierce tower: slender stone spire on a square base, crowned by a cradle holding a floating orb
  * wrapped in a tornado swirl. One floating rune ring around the shaft per level.
  */
-import { box, groundEllipse, prism, project, ringHalves } from '../../iso.js';
-import { faces, mix, shade } from '../../palette.js';
-import { group, line, path } from '../../svg.js';
-import type { Pt } from '../../svg.js';
-import type { Sprite, TowerParams } from '../types.js';
+import {
+  box,
+  groundEllipse,
+  prism,
+  project,
+  ringHalves,
+} from '../../../../iso.js';
+import { faces, mix, shade } from '../../../../palette.js';
+import { group, line, path } from '../../../../svg.js';
+import type { Pt } from '../../../../svg.js';
+import type { Sprite, TowerParams } from '../../../types.js';
 import {
   banner,
   finishTower,
@@ -17,8 +23,8 @@ import {
   teamBand,
   towerCanvas,
   towerShadow,
-} from './parts.js';
-import type { TowerCanvas } from './parts.js';
+} from '../../parts.js';
+import type { TowerCanvas } from '../../parts.js';
 
 const HEIGHTS = [94, 104, 112] as const;
 

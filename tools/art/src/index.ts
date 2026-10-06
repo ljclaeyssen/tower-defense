@@ -4,7 +4,7 @@
  */
 export { buildManifest, filterManifest } from './manifest.js';
 export type { FrameEntry, FrameGroup } from './manifest.js';
-export { generateTower, TOWER_GENERATORS } from './generators/towers/index.js';
+export { generateTower, TOWER_KITS } from './generators/towers/index.js';
 export { generateGround, GROUND_KINDS } from './generators/ground.js';
 export { generateProjectile } from './generators/projectiles.js';
 export type { Sprite, TowerParams } from './generators/types.js';

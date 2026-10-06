@@ -16,6 +16,7 @@ import {
 } from '../../svg.js';
 import type { Pt } from '../../svg.js';
 import type { CreepGenerator, CreepParams, Sprite } from '../types.js';
+import { generateCreepShadow } from './shadow.js';
 
 export const BEETLE_SIZE = 16;
 export const WALK_FRAMES = 4;
@@ -165,24 +166,7 @@ export function generateBeetle({ frame, team }: CreepParams): Sprite {
   };
 }
 
-export function generateBeetleShadow(): Sprite {
-  const defs = new Defs();
-  const w = 16;
-  const h = 8;
-  const fill = defs.radial([
-    [0, '#000000', 0.55],
-    [0.6, '#000000', 0.35],
-    [1, '#000000', 0],
-  ]);
-  return {
-    svg: svgDoc(w, h, ellipse(w / 2, h / 2, w / 2, h / 2, { fill }), defs),
-    width: w,
-    height: h,
-    pivot: { x: w / 2, y: h / 2 },
-  };
-}
-
 export const BEETLE: CreepGenerator = {
   walk: generateBeetle,
-  shadow: generateBeetleShadow,
+  shadow: generateCreepShadow,
 };

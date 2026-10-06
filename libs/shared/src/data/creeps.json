@@ -8,5 +8,15 @@
     "hpGrowthPerWave": 0.25,
     "sendCost": 8,
     "incomeBonus": 1
+  },
+  "slime": {
+    "id": "slime",
+    "nameKey": "creeps.slime.name",
+    "hp": 90,
+    "speed": 0.07,
+    "bounty": 10,
+    "hpGrowthPerWave": 0.25,
+    "sendCost": 14,
+    "incomeBonus": 2
   }
 }

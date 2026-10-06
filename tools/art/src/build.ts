@@ -4,7 +4,9 @@
  * manifest.json and a contact sheet, written to apps/web/public/assets/.
  *
  * Flags: --watch (rebuild on generator or data changes), --only=<prefix>[,<prefix>] (subset of
- * frames, still a valid atlas), --out=<dir> (another output directory, e.g. for QA).
+ * frames, still a valid atlas), --out=<dir> (another output directory, e.g. for QA), --sheet-zoom=N,
+ * --grey / --silhouette (contact sheet in greyscale or as flat silhouettes), --no-sheet,
+ * --all-creeps (QA: creep generators not yet declared in creeps.json).
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync, readdirSync, rmSync, watch, writeFileSync } from 'node:fs';
@@ -133,8 +135,22 @@ const pageName = (scale: Scale, index: number): string =>
 
 const SHEET_WIDTH = 1700;
 
-function contactSheet(frames: readonly RenderedFrame[], zoom: number): Buffer {
+/** Contact sheet look: normal colours, greyscale, or flat dark silhouettes (identity check). */
+export type SheetMode = 'colour' | 'grey' | 'silhouette';
+
+const SHEET_FILTERS: Readonly<Record<SheetMode, string>> = {
+  colour: '',
+  grey: '0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0 0 0 1 0',
+  silhouette: '0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0 0.13  0 0 0 4 -1.2',
+};
+
+function contactSheet(
+  frames: readonly RenderedFrame[],
+  zoom: number,
+  mode: SheetMode,
+): Buffer {
   const defs = new Defs('c');
+  const filter = SHEET_FILTERS[mode] ? 'url(#mode)' : undefined;
   const body: string[] = [];
   let y = 16;
   const sections: { title: string; frames: RenderedFrame[] }[] = [];
@@ -151,7 +167,7 @@ function contactSheet(frames: readonly RenderedFrame[], zoom: number): Buffer {
       text(16, y + 14, section.title, {
         'font-size': 16,
         'font-weight': 'bold',
-        fill: '#e8e2d0',
+        fill: mode === 'silhouette' ? '#2a2a30' : '#e8e2d0',
       }),
     );
     y += 26;
@@ -197,7 +213,9 @@ function contactSheet(frames: readonly RenderedFrame[], zoom: number): Buffer {
       const src = f.images[2];
       const png = encodePng(src.width, src.height, src.data);
       cell.push(
-        image(x, y, w, h, `data:image/png;base64,${png.toString('base64')}`),
+        image(x, y, w, h, `data:image/png;base64,${png.toString('base64')}`, {
+          filter,
+        }),
         line([px - 3, py], [px + 3, py], {
           stroke: '#ff3366',
           'stroke-width': 1,
@@ -208,7 +226,7 @@ function contactSheet(frames: readonly RenderedFrame[], zoom: number): Buffer {
         }),
         text(x, y + h + 12, f.entry.label, {
           'font-size': 10,
-          fill: '#b9b4a6',
+          fill: mode === 'silhouette' ? '#55524a' : '#b9b4a6',
         }),
       );
       body.push(group({}, cell));
@@ -221,15 +239,29 @@ function contactSheet(frames: readonly RenderedFrame[], zoom: number): Buffer {
   const checker = el(
     'pattern',
     { id: 'checker', width: 16, height: 16, patternUnits: 'userSpaceOnUse' },
-    rect(0, 0, 16, 16, { fill: '#26262b' }),
-    rect(0, 0, 8, 8, { fill: '#2e2e34' }),
-    rect(8, 8, 8, 8, { fill: '#2e2e34' }),
+    rect(0, 0, 16, 16, { fill: mode === 'silhouette' ? '#d9d4c6' : '#26262b' }),
+    rect(0, 0, 8, 8, { fill: mode === 'silhouette' ? '#e2ddd0' : '#2e2e34' }),
+    rect(8, 8, 8, 8, { fill: mode === 'silhouette' ? '#e2ddd0' : '#2e2e34' }),
   );
   const svg = svgDoc(
     SHEET_WIDTH,
     height,
     [
-      el('defs', {}, checker),
+      el(
+        'defs',
+        {},
+        checker,
+        SHEET_FILTERS[mode]
+          ? el(
+              'filter',
+              { id: 'mode', 'color-interpolation-filters': 'sRGB' },
+              el('feColorMatrix', {
+                type: 'matrix',
+                values: SHEET_FILTERS[mode],
+              }),
+            )
+          : '',
+      ),
       rect(0, 0, SHEET_WIDTH, height, { fill: 'url(#checker)' }),
       body,
     ],
@@ -254,11 +286,18 @@ export interface BuildOptions {
   readonly contactSheet: boolean;
   /** Display zoom of the frames on the contact sheet (logical px → sheet px). */
   readonly sheetZoom: number;
+  /** Contact sheet rendering mode (--grey, --silhouette). */
+  readonly sheetMode?: SheetMode;
+  /** QA: include creep generators not declared in creeps.json yet (--all-creeps). */
+  readonly allCreeps?: boolean;
 }
 
 export function build(options: BuildOptions): void {
   const t0 = performance.now();
-  const entries = filterManifest(buildManifest(), options.only);
+  const entries = filterManifest(
+    buildManifest({ allCreeps: options.allCreeps }),
+    options.only,
+  );
   if (entries.length === 0)
     throw new Error(`No frame matches --only=${options.only.join(',')}`);
   const rendered = entries.map(renderFrame);
@@ -321,7 +360,7 @@ export function build(options: BuildOptions): void {
   if (options.contactSheet)
     writeFileSync(
       join(options.outDir, 'contact-sheet.png'),
-      contactSheet(rendered, options.sheetZoom),
+      contactSheet(rendered, options.sheetZoom, options.sheetMode ?? 'colour'),
     );
   const t3 = performance.now();
 
@@ -345,6 +384,12 @@ function parseArgs(argv: readonly string[]): BuildOptions & { watch: boolean } {
     outDir: resolve(value('out') ?? OUTPUT_DIR),
     contactSheet: !argv.includes('--no-sheet'),
     sheetZoom: Number(value('sheet-zoom') ?? 2),
+    allCreeps: argv.includes('--all-creeps'),
+    sheetMode: argv.includes('--silhouette')
+      ? 'silhouette'
+      : argv.includes('--grey')
+        ? 'grey'
+        : 'colour',
   };
 }
 

@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build } from './build.js';
+import { buildManifest, filterManifest } from './manifest.js';
 import { PNG_SIGNATURE } from './png.js';
 
 interface AtlasFrame {
@@ -66,7 +67,9 @@ describe('build', () => {
       scale: '1',
     });
     expect(a2.meta.scale).toBe('2');
-    expect(Object.keys(a1.frames)).toHaveLength(14);
+    expect(Object.keys(a1.frames)).toHaveLength(
+      filterManifest(buildManifest(), ['ground/', 'creep/', 'fx/']).length,
+    );
     const g1 = a1.frames['ground/grass-a'];
     const g2 = a2.frames['ground/grass-a'];
     expect(g1).toMatchObject({

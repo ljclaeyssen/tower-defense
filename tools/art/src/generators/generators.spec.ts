@@ -4,7 +4,7 @@ import { buildManifest } from '../manifest.js';
 import type { FrameGroup } from '../manifest.js';
 import type { Image } from '../png.js';
 
-const frames = buildManifest();
+const frames = buildManifest({ allCreeps: true });
 
 /** Max alpha on the outer border (top row, left and right columns; bottom too for non-ground). */
 function borderAlpha(img: Image, bottom: boolean): number {

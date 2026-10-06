@@ -141,6 +141,9 @@
   "creeps": {
     "beetle": {
       "name": "Scarabée"
+    },
+    "slime": {
+      "name": "Slime"
     }
   },
   "rejections": {

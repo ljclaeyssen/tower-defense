@@ -2,9 +2,11 @@ import {
   CREEPS,
   ECONOMY,
   WAVES,
+  isCreepTypeId,
   type GameEvent,
   type GridPos,
   type MapDef,
+  type WaveDef,
 } from '@td/shared';
 import type { Game } from './api.js';
 import { createGame } from './game.js';
@@ -33,10 +35,16 @@ function snakeMap(): MapDef {
   };
 }
 
-const expectedHp = (waveIndex: number) =>
-  Math.round(
-    CREEPS.beetle.hp * (1 + CREEPS.beetle.hpGrowthPerWave * waveIndex),
+/** maxHp of the creeps of wave `waveIndex`, from that wave's own creep def. */
+const expectedHp = (waveIndex: number) => {
+  const wave: WaveDef | undefined = WAVES[waveIndex];
+  if (!wave || !isCreepTypeId(wave.creepType))
+    throw new Error(`bad wave ${waveIndex}`);
+  const def = CREEPS[wave.creepType];
+  return Math.round(
+    def.hp * (1 + def.hpGrowthPerWave * waveIndex) * (wave.hpMultiplier ?? 1),
   );
+};
 
 /** Steps until the current wave is fully spawned; returns the events. */
 function stepUntilSpawned(game: Game): GameEvent[] {

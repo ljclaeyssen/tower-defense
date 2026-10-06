@@ -34,11 +34,13 @@
 - [x] svg/iso/palette core, generators (ground, beetle, 4 human role towers x 3 levels x 2 teams, 9 projectile shapes), manifest, shelf packer, PNG encoder, atlas@1x/@2x + manifest + contact sheet, watch mode — agent Art
 - [x] Renderer: atlas loading with procedural fallback, SpriteRef, animated/oriented creeps, manifest-driven gallery, assetsBaseUrl — agent Game
 - [x] Integration, browser check, commit, deploy
-- [ ] Owner style validation (contact sheet + in-game)
+- [x] First style review: owner asked for real faction identity (not palette swaps)
 
 ### 2b — other factions, slime, remove fallback, polish
 
-- [ ] Elf / orc / undead / dwarf kits, slime creep (+ data), drop procedural fallback, effects polish
+- [x] Elf / orc / undead / dwarf architectural kits, slime creep + data + two slime waves
+- [ ] Owner validation of the faction kits
+- [ ] Neighbour-aware road edges, drop procedural fallback, effects polish
 
 ## Phase 3 — PvP (Colyseus rooms, lobby, RemoteSession, send creeps)
 

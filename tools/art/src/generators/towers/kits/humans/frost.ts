@@ -2,11 +2,9 @@
  * Slow tower: cluster of ice crystals on a stone base with a frost glow. More and taller shards per
  * level; level 3 adds floating sparkles.
  */
-import { box, project } from '../../iso.js';
-import { mix, shade } from '../../palette.js';
-import { group, line, path, pathD, polygon } from '../../svg.js';
-import type { Pt } from '../../svg.js';
-import type { Sprite, TowerParams } from '../types.js';
+import { box, project } from '../../../../iso.js';
+import { mix } from '../../../../palette.js';
+import type { Sprite, TowerParams } from '../../../types.js';
 import {
   auraEllipse,
   finishTower,
@@ -16,23 +14,13 @@ import {
   teamBand,
   towerCanvas,
   towerShadow,
-} from './parts.js';
-import type { TowerCanvas } from './parts.js';
+} from '../../parts.js';
+import { iceShard, sparkle } from '../../ornaments.js';
+import type { ShardSpec } from '../../ornaments.js';
 
 const HEIGHTS = [80, 96, 112] as const;
 
-interface Shard {
-  /** Offset on the base top (cells). */
-  readonly x: number;
-  readonly y: number;
-  readonly height: number;
-  /** Half width in px. */
-  readonly width: number;
-  /** Horizontal tip offset per px of height. */
-  readonly lean: number;
-}
-
-const SHARDS: readonly (readonly Shard[])[] = [
+const SHARDS: readonly (readonly ShardSpec[])[] = [
   [
     { x: 0, y: 0, height: 26, width: 5, lean: 0.02 },
     { x: -0.32, y: 0.12, height: 14, width: 3.6, lean: -0.3 },
@@ -55,64 +43,6 @@ const SHARDS: readonly (readonly Shard[])[] = [
     { x: 0.42, y: -0.08, height: 13, width: 3, lean: 0.5 },
   ],
 ];
-
-/** One faceted crystal: lit left facet, shaded right facet, white highlight on the lit edge. */
-function crystal(c: TowerCanvas, s: Shard, z: number): string {
-  const [bx, by] = project(c.o, s.x, s.y, z);
-  const w = s.width;
-  const h = s.height;
-  const shoulder = 0.74;
-  const lean = (t: number): number => s.lean * h * t;
-  const L: Pt = [bx - w, by - w * 0.25];
-  const F: Pt = [bx + w * 0.15, by + w * 0.35];
-  const R: Pt = [bx + w, by - w * 0.25];
-  const up = (p: Pt): Pt => [
-    p[0] * 0.92 + bx * 0.08 + lean(shoulder),
-    p[1] - h * shoulder,
-  ];
-  const Ls = up(L);
-  const Fs = up(F);
-  const Rs = up(R);
-  const T: Pt = [bx + lean(1) + w * 0.1, by - h];
-  const ice = c.kit.ice;
-  return group(
-    {},
-    polygon([L, Ls, T, Fs, F], {
-      fill: shade(ice, 1.05),
-      'fill-opacity': 0.95,
-    }),
-    polygon([F, Fs, T, Rs, R], {
-      fill: shade(ice, 0.66),
-      'fill-opacity': 0.95,
-    }),
-    polygon([Ls, T, Fs], { fill: shade(ice, 1.3), 'fill-opacity': 0.9 }),
-    path(pathD([L, Ls, T, Rs, R, F], true), {
-      fill: 'none',
-      stroke: shade(ice, 0.35),
-      'stroke-width': 0.5,
-      'stroke-opacity': 0.8,
-    }),
-    line(L, Ls, {
-      stroke: '#ffffff',
-      'stroke-width': 0.6,
-      'stroke-opacity': 0.9,
-    }),
-    line(F, Fs, {
-      stroke: '#ffffff',
-      'stroke-width': 0.4,
-      'stroke-opacity': 0.55,
-    }),
-  );
-}
-
-/** Four-point sparkle. */
-function sparkle(at: Pt, r: number, colour: string): string {
-  const [x, y] = at;
-  return path(
-    `M${x} ${y - r} Q${x + r * 0.15} ${y - r * 0.15} ${x + r} ${y} Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r} Q${x - r * 0.15} ${y + r * 0.15} ${x - r} ${y} Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r} Z`,
-    { fill: colour },
-  );
-}
 
 export function generateFrostTower(params: TowerParams): Sprite {
   const level = Math.min(3, Math.max(1, params.level));
@@ -152,7 +82,7 @@ export function generateFrostTower(params: TowerParams): Sprite {
     stoneBlock(c, 'base', { size: 1.44, z: 4, height: baseH }),
     teamBand(c, base, 1.5, 2),
     glow(c, centre, 10 + 3 * level, frost, 0.45),
-    shards.map((s) => crystal(c, s, topZ)),
+    shards.map((s) => iceShard(c, s, topZ, kit.ice)),
     sparkles,
   );
 }

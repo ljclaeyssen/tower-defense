@@ -24,6 +24,7 @@ import {
   ellipse,
   group,
   line,
+  num,
   path,
   rect,
   svgDoc,
@@ -158,13 +159,51 @@ export function teamBand(
   return out.join('');
 }
 
-/** Banner in the team colour: pole from the world point (x, y, z), swallowtail flag waving right. */
+export type BannerStyle = 'swallowtail' | 'pennant' | 'tattered' | 'square';
+
+export interface BannerOptions {
+  /** Flag scale (1 ≈ 10 × 6.5 px). */
+  readonly flag?: number;
+  readonly style?: BannerStyle;
+  /** Pole colour (default: dark faction wood). */
+  readonly pole?: Hex;
+  /** Finial / emblem colour (default: faction trim). */
+  readonly trim?: Hex;
+}
+
+function flagPath(
+  x: number,
+  fy: number,
+  fw: number,
+  fh: number,
+  style: BannerStyle,
+): string {
+  const P = (u: number, v: number): string =>
+    `${num(x + fw * u)} ${num(fy + fh * v)}`;
+  switch (style) {
+    case 'pennant':
+      return `M${P(0, 0)} Q${P(0.6, 0.1)} ${P(1.25, 0.45)} Q${P(0.6, 0.55)} ${P(0, 0.9)} Z`;
+    case 'tattered':
+      return `M${P(0, 0)} L${P(1, 0.05)} L${P(0.92, 0.55)} L${P(1, 0.78)} L${P(0.7, 0.64)} L${P(0.6, 1.18)} L${P(0.42, 0.72)} L${P(0.22, 1.1)} L${P(0, 0.82)} Z`;
+    case 'square':
+      return `M${P(0, 0)} L${P(0.85, 0)} L${P(0.85, 1)} L${P(0.42, 0.82)} L${P(0, 1)} Z`;
+    case 'swallowtail':
+      return `M${P(0, 0)} Q${P(0.5, -0.18)} ${P(1, 0.1)} L${P(0.78, 0.5)} L${P(1, 1.06)} Q${P(0.5, 0.85)} ${P(0, 1)} Z`;
+  }
+}
+
+/** Banner in the team colour: pole from the world point (x, y, z), flag waving right. */
 export function banner(
   c: TowerCanvas,
   at: readonly [number, number, number],
   pole: number,
-  flag = 1,
+  options: number | BannerOptions = {},
 ): string {
+  const o: BannerOptions =
+    typeof options === 'number' ? { flag: options } : options;
+  const flag = o.flag ?? 1;
+  const style = o.style ?? 'swallowtail';
+  const trim = o.trim ?? c.kit.trim;
   const [x, y] = project(c.o, at[0], at[1], at[2]);
   const top = y - pole;
   const team = TEAM_COLOURS[c.team];
@@ -179,17 +218,26 @@ export function banner(
   return group(
     {},
     line([x, y], [x, top], {
-      stroke: shade(c.kit.wood, 0.7),
+      stroke: o.pole ?? shade(c.kit.wood, 0.7),
       'stroke-width': 1,
       'stroke-linecap': 'round',
     }),
-    path(
-      `M${x} ${fy} Q${x + fw * 0.5} ${fy - 1.2} ${x + fw} ${fy + 0.6} L${x + fw * 0.78} ${fy + fh * 0.5} L${x + fw} ${fy + fh + 0.4} Q${x + fw * 0.5} ${fy + fh - 1} ${x} ${fy + fh} Z`,
-      { fill, stroke: team.dark, 'stroke-width': 0.4 },
-    ),
+    style === 'square'
+      ? line([x - 0.5, fy], [x + fw * 0.9, fy], {
+          stroke: o.pole ?? shade(c.kit.wood, 0.7),
+          'stroke-width': 0.8,
+        })
+      : '',
+    path(flagPath(x, fy, fw, fh, style), {
+      fill,
+      stroke: team.dark,
+      'stroke-width': 0.4,
+    }),
     // Faction emblem on the flag.
-    circle(x + fw * 0.42, fy + fh * 0.48, 1.3 * flag, { fill: c.kit.trim }),
-    circle(x, top - 0.6, 0.9, { fill: c.kit.trim }),
+    style === 'pennant'
+      ? ''
+      : circle(x + fw * 0.4, fy + fh * 0.45, 1.2 * flag, { fill: trim }),
+    circle(x, top - 0.6, 0.9, { fill: trim }),
   );
 }
 
